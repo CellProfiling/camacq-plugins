@@ -23,6 +23,7 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     python_requires=">=3.6",
     install_requires=REQUIRES,
+    entry_points={"camacq.plugins": ["production = camacqplugins.production",],},
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
         "Programming Language :: Python",
