@@ -16,6 +16,7 @@ setuptools.setup(
     author="Martin Hjelmare",
     author_email="marhje52@kth.se",
     description="Plugins for camacq",
+    license="Apache License 2.0",
     long_description=LONG_DESCR,
     long_description_content_type="text/markdown",
     packages=setuptools.find_packages(),
