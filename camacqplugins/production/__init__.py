@@ -2,10 +2,7 @@
 import asyncio
 import logging
 
-import voluptuous as vol
-
 from camacq.event import match_event
-from camacq.helper.template import TemplateFunctions
 from camacq.plugins.sample.helper import next_well_xy
 from camacq.util import read_csv
 
