@@ -6,6 +6,7 @@ import voluptuous as vol
 
 from camacq.event import match_event
 from camacq.helper.template import TemplateFunctions
+from camacq.plugins.sample.helper import next_well_xy
 from camacq.util import read_csv
 
 _LOGGER = logging.getLogger(__name__)
@@ -44,8 +45,6 @@ def start_exp(center):
 
     async def start(center, event):
         """Run on start event."""
-        print("Camacq started!!!")
-
         await center.actions.sample.set_well(plate_name="00", well_x=0, well_y=0)
 
     center.bus.register("camacq_start_event", start)
@@ -56,13 +55,12 @@ def add_next_well(center):
 
     async def well_event(center, event):
         """Run on well event."""
-        print("Well event!!!")
         if not match_event(event, field_x=1, field_y=2, well_img_ok=True):
             return
 
+        # TODO: Make plate and well coordinates configurable.
         plate_name = "00"
-        sample_helper = TemplateFunctions(center)
-        well_x, well_y = sample_helper.next_well_xy(plate_name, x_wells=12, y_wells=8)
+        well_x, well_y = next_well_xy(center.sample, plate_name, x_wells=12, y_wells=8)
 
         await center.actions.sample.set_well(
             plate_name=plate_name, well_x=well_x, well_y=well_y
