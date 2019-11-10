@@ -12,7 +12,7 @@ SAMPLE_STATE_FILE = "state_file"
 
 
 async def setup_module(center, config):
-    """Set up Leica api package."""
+    """Set up production plugin."""
     print("Production plugin setup!")
 
     conf = config["production"]
