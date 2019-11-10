@@ -4,7 +4,7 @@ import logging
 
 import voluptuous as vol
 
-from camacq.plugins.sample import ACTION_TO_METHOD
+from camacq.helper.template import TemplateFunctions
 from camacq.util import read_csv
 
 _LOGGER = logging.getLogger(__name__)
@@ -18,21 +18,63 @@ async def setup_module(center, config):
 
     conf = config["production"]
     state_file = conf.get(SAMPLE_STATE_FILE) if conf else None
-    if state_file is None:
-        return
+    if state_file is not None:
+        await load_sample(center, state_file)
+    else:
+        start_exp(center)
+
+    add_next_well(center)
+
+
+async def load_sample(center, state_file):
+    """Load sample state from file."""
     state_data = await center.add_executor_job(read_csv, state_file)
     tasks = []
     for data in state_data:
-        for action_id, options in ACTION_TO_METHOD.items():
-            schema = options["schema"]
-            try:
-                schema(data)
-            except vol.Invalid as exc:
-                _LOGGER.debug("Skipping action %s: %s", action_id, exc)
-                continue
-            tasks.append(
-                center.create_task(center.actions.call("sample", action_id, **data))
-            )
+        for action in center.actions.sample.values():
+            tasks.append(center.create_task(action(silent=True, **data)))
 
     if tasks:
         await asyncio.wait(tasks)
+
+
+def start_exp(center):
+    """Trigger on start experiment."""
+
+    async def start(center, event):
+        """Run on start event."""
+        print("Camacq started!!!")
+
+        await center.actions.sample.set_well(plate_name="00", well_x=0, well_y=0)
+
+    center.bus.register("camacq_start_event", start)
+
+
+def add_next_well(center):
+    """Add next well."""
+
+    async def well_event(center, event):
+        """Run on well event."""
+        print("Well event!!!")
+        if not match_event(event, field_x=1, field_y=2, well_img_ok=True):
+            return
+
+        plate_name = "00"
+        sample_helper = TemplateFunctions(center)
+        well_x, well_y = sample_helper.next_well_xy(plate_name, x_wells=12, y_wells=8)
+
+        await center.actions.sample.set_well(
+            plate_name=plate_name, well_x=well_x, well_y=well_y
+        )
+
+    center.bus.register("well_event", well_event)
+
+
+def match_event(event, **event_data):
+    """Return True if event matches."""
+    if not event_data or all(
+        val == getattr(event, key, None) for key, val in event_data.items()
+    ):
+        return True
+
+    return False
