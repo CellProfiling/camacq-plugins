@@ -4,6 +4,7 @@ import logging
 
 import voluptuous as vol
 
+from camacq.event import match_event
 from camacq.helper.template import TemplateFunctions
 from camacq.util import read_csv
 
@@ -68,13 +69,3 @@ def add_next_well(center):
         )
 
     center.bus.register("well_event", well_event)
-
-
-def match_event(event, **event_data):
-    """Return True if event matches."""
-    if not event_data or all(
-        val == getattr(event, key, None) for key, val in event_data.items()
-    ):
-        return True
-
-    return False
