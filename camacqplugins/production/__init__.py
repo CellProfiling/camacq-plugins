@@ -3,6 +3,7 @@ import asyncio
 import logging
 
 from camacq.event import match_event
+from camacq.plugins.leica.command import cam_com, del_com
 from camacq.plugins.sample.helper import next_well_xy
 from camacq.util import read_csv
 
@@ -23,6 +24,7 @@ async def setup_module(center, config):
         start_exp(center)
 
     add_next_well(center)
+    image_next_well(center)
     stop_exp(center)
 
 
@@ -41,17 +43,17 @@ async def load_sample(center, state_file):
 def start_exp(center):
     """Trigger on start experiment."""
 
-    async def start(center, event):
+    async def set_start_well(center, event):
         """Run on start event."""
         await center.actions.sample.set_well(plate_name="00", well_x=0, well_y=0)
 
-    center.bus.register("camacq_start_event", start)
+    center.bus.register("camacq_start_event", set_start_well)
 
 
 def add_next_well(center):
     """Add next well."""
 
-    async def well_event(center, event):
+    async def set_next_well(center, event):
         """Run on well event."""
         if not match_event(event, field_x=1, field_y=2, well_img_ok=True):
             return
@@ -64,13 +66,37 @@ def add_next_well(center):
             plate_name=plate_name, well_x=well_x, well_y=well_y
         )
 
-    center.bus.register("well_event", well_event)
+    center.bus.register("well_event", set_next_well)
+
+
+def image_next_well(center):
+    """Image next well."""
+
+    async def send_cam_job(center, event):
+        """Run on well event."""
+        if event.well.images:
+            return
+
+        await center.actions.command.send(command=del_com())
+        # TODO: Make exp job configurable.
+        command = cam_com("p10xgain", event.well.x, event.well.y, 0, 1, 0, 0)
+        await center.actions.command.send(command=command)
+        command = cam_com("p10xgain", event.well.x, event.well.y, 1, 1, 0, 0)
+        await center.actions.command.send(command=command)
+
+        # TODO: Unregister rename image and set img ok.
+
+        await center.actions.command.start_imaging()
+        await asyncio.sleep(2.0)
+        await center.actions.command.send(command="/cmd:startcamscan")
+
+    center.bus.register("well_event", send_cam_job)
 
 
 def stop_exp(center):
     """Trigger to stop experiment."""
 
-    async def stop(center, event):
+    async def stop_imaging(center, event):
         """Run to stop the experiment."""
         next_well_x, _ = next_well_xy("00", 2, 2)
 
@@ -80,7 +106,8 @@ def stop_exp(center):
         ):
             return
 
-        await center.actions.automations.delay(seconds=2.0)
+        # Sleep to let images be completely scanned before stopping.
+        await asyncio.sleep(2.0)
         await center.actions.api.stop_imaging()
 
-    center.bus.register("well_event", stop)
+    center.bus.register("well_event", stop_imaging)
