@@ -55,13 +55,25 @@ def add_next_well(center):
 
     async def set_next_well(center, event):
         """Run on well event."""
-        # TODO: Make stop field coordinates configurable.
-        if not match_event(event, field_x=1, field_y=2, well_img_ok=True):
+        # TODO: Make well layout and stop field coordinates configurable.
+        plate_name = "00"
+        x_wells = 12
+        y_wells = 8
+        next_well_x, _ = next_well_xy(plate_name, x_wells, y_wells)
+
+        if (
+            not match_event(event, field_x=1, field_y=2, well_img_ok=True)
+            or next_well_x is None
+        ):
             return
 
-        # TODO: Make well coordinates configurable.
-        plate_name = "00"
-        well_x, well_y = next_well_xy(center.sample, plate_name, x_wells=12, y_wells=8)
+        await asyncio.sleep(2.0)
+        await center.actions.command.stop_imaging()
+        await asyncio.sleep(4.0)
+
+        well_x, well_y = next_well_xy(
+            center.sample, plate_name, x_wells=x_wells, y_wells=y_wells
+        )
 
         await center.actions.sample.set_well(
             plate_name=plate_name, well_x=well_x, well_y=well_y
