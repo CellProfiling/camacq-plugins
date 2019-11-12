@@ -5,7 +5,7 @@ import tempfile
 from pathlib import Path
 
 from camacq.event import match_event
-from camacq.plugins.leica.command import cam_com, del_com
+from camacq.plugins.leica.command import cam_com, del_com, gain_com
 from camacq.plugins.sample.helper import next_well_xy
 from camacq.util import read_csv
 
@@ -29,6 +29,7 @@ async def setup_module(center, config):
     add_next_well(center)
     image_next_well(center)
     analyze_gain(center)
+    set_exp_gain(center)
     stop_exp(center)
 
 
@@ -150,6 +151,50 @@ def analyze_gain(center):
         )
 
     center.bus.register("image_event", calc_gain)
+
+
+def set_exp_gain(center):
+    """Set experiment gain."""
+
+    async def set_gain(center, event):
+        """Set pmt gain."""
+        # TODO:  Make exp job names configurable.
+        exp_job_1 = "exp_job_1"
+        exp_job_2 = "exp_job_2"
+        exp_job_3 = "exp_job_3"
+
+        if event.channel_name == "green":
+            exp = exp_job_1
+            num = 1
+            gain = min(event.gain or 800, 800)
+        elif event.channel_name == "blue":
+            exp = exp_job_2
+            num = 1
+            gain = min(event.gain or 505, 610)
+        elif event.channel_name == "yellow":
+            exp = exp_job_2
+            num = 2
+            gain = min(event.gain or 655, 760)
+        elif event.channel_name == "red":
+            exp = exp_job_3
+            num = 2
+            gain = event.gain or 630
+            gain = min(gain + 25, 735)
+
+        command = gain_com(exp=exp, num=num, value=gain)
+
+        # Set the gain at the microscope.
+        await center.actions.command.send(command=command)
+        # Set the gain in the sample state.
+        await center.actions.sample.set_channel(
+            plate_name=event.plate_name,
+            well_x=event.well_x,
+            well_y=event.well_y,
+            channel_name=event.channel_name,
+            gain=gain,
+        )
+
+    center.bus.register("gain_calc_event", set_gain)
 
 
 def stop_exp(center):
