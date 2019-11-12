@@ -140,6 +140,7 @@ def analyze_gain(center):
             / f"{event.well_x}--{event.well_y}"
         )
 
+        # FIXME: Adjust the action type for plugins.gain to avoid period in the name.
         await center.actions.plugins.gain.calc_gain(
             plate_name=event.plate_name,
             well_x=event.well_x,
