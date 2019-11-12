@@ -10,6 +10,7 @@ from camacq.util import read_csv
 _LOGGER = logging.getLogger(__name__)
 
 SAMPLE_STATE_FILE = "state_file"
+START_STOP_DELAY = 2.0
 
 
 async def setup_module(center, config):
@@ -67,9 +68,9 @@ def add_next_well(center):
         ):
             return
 
-        await asyncio.sleep(2.0)
+        await asyncio.sleep(START_STOP_DELAY)
         await center.actions.command.stop_imaging()
-        await asyncio.sleep(4.0)
+        await asyncio.sleep(2 * START_STOP_DELAY)
 
         well_x, well_y = next_well_xy(
             center.sample, plate_name, x_wells=x_wells, y_wells=y_wells
@@ -100,7 +101,7 @@ def image_next_well(center):
         # TODO: Unregister rename image and set img ok.
 
         await center.actions.command.start_imaging()
-        await asyncio.sleep(2.0)
+        await asyncio.sleep(START_STOP_DELAY)
         await center.actions.command.send(command="/cmd:startcamscan")
 
     center.bus.register("well_event", send_cam_job)
@@ -121,7 +122,7 @@ def stop_exp(center):
             return
 
         # Sleep to let images be completely scanned before stopping.
-        await asyncio.sleep(2.0)
+        await asyncio.sleep(START_STOP_DELAY)
         await center.actions.api.stop_imaging()
 
     center.bus.register("well_event", stop_imaging)
