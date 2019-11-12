@@ -23,6 +23,7 @@ async def setup_module(center, config):
         start_exp(center)
 
     add_next_well(center)
+    stop_exp(center)
 
 
 async def load_sample(center, state_file):
@@ -64,3 +65,22 @@ def add_next_well(center):
         )
 
     center.bus.register("well_event", well_event)
+
+
+def stop_exp(center):
+    """Trigger to stop experiment."""
+
+    async def stop(center, event):
+        """Run to stop the experiment."""
+        next_well_x, _ = next_well_xy("00", 2, 2)
+
+        if (
+            not match_event(event, field_x=1, field_y=2, well_img_ok=True)
+            or next_well_x is not None
+        ):
+            return
+
+        await center.actions.automations.delay(seconds=2.0)
+        await center.actions.api.stop_imaging()
+
+    center.bus.register("well_event", stop)
