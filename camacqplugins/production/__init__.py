@@ -55,10 +55,11 @@ def add_next_well(center):
 
     async def set_next_well(center, event):
         """Run on well event."""
+        # TODO: Make stop field coordinates configurable.
         if not match_event(event, field_x=1, field_y=2, well_img_ok=True):
             return
 
-        # TODO: Make plate and well coordinates configurable.
+        # TODO: Make well coordinates configurable.
         plate_name = "00"
         well_x, well_y = next_well_xy(center.sample, plate_name, x_wells=12, y_wells=8)
 
@@ -78,7 +79,7 @@ def image_next_well(center):
             return
 
         await center.actions.command.send(command=del_com())
-        # TODO: Make exp job configurable.
+        # TODO: Make exp job and field coordinates configurable.
         command = cam_com("p10xgain", event.well.x, event.well.y, 0, 1, 0, 0)
         await center.actions.command.send(command=command)
         command = cam_com("p10xgain", event.well.x, event.well.y, 1, 1, 0, 0)
@@ -98,7 +99,8 @@ def stop_exp(center):
 
     async def stop_imaging(center, event):
         """Run to stop the experiment."""
-        next_well_x, _ = next_well_xy("00", 2, 2)
+        # TODO: Make well layout and stop field coordinates configurable.
+        next_well_x, _ = next_well_xy("00", 12, 8)
 
         if (
             not match_event(event, field_x=1, field_y=2, well_img_ok=True)
