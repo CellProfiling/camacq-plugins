@@ -1,6 +1,8 @@
 """Provide a plugin for production standard flow."""
 import asyncio
 import logging
+import tempfile
+from pathlib import Path
 
 from camacq.event import match_event
 from camacq.plugins.leica.command import cam_com, del_com
@@ -26,6 +28,7 @@ async def setup_module(center, config):
 
     add_next_well(center)
     image_next_well(center)
+    analyze_gain(center)
     stop_exp(center)
 
 
@@ -105,6 +108,47 @@ def image_next_well(center):
         await center.actions.command.send(command="/cmd:startcamscan")
 
     center.bus.register("well_event", send_cam_job)
+
+
+def analyze_gain(center):
+    """Analyze gain."""
+
+    async def calc_gain(center, event):
+        """Calculate correct gain."""
+        # TODO: Make event field coordinates, job id and save_path configurable.
+        field_x = 1
+        field_y = 1
+        job_id = 3
+        channel_id = 31
+        if not match_event(
+            event,
+            field_x=field_x,
+            field_y=field_y,
+            job_id=job_id,
+            channel_id=channel_id,
+        ):
+            return
+
+        await asyncio.sleep(START_STOP_DELAY)
+        await center.actions.command.stop_imaging()
+        await asyncio.sleep(START_STOP_DELAY)
+
+        # This should be a path to a base file name, not to an actual dir or file.
+        save_path = (
+            Path(tempfile.gettempdir())
+            / event.plate_name
+            / f"{event.well_x}--{event.well_y}"
+        )
+
+        await center.actions.plugins.gain.calc_gain(
+            plate_name=event.plate_name,
+            well_x=event.well_x,
+            well_y=event.well_y,
+            make_plots=True,
+            save_path=save_path,
+        )
+
+    center.bus.register("image_event", calc_gain)
 
 
 def stop_exp(center):
