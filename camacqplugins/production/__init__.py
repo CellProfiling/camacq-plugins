@@ -31,6 +31,7 @@ async def setup_module(center, config):
     analyze_gain(center)
     set_exp_gain(center)
     add_exp_job(center)
+    set_img_ok(center)
     stop_exp(center)
 
 
@@ -225,6 +226,26 @@ def add_exp_job(center):
         await center.actions.command.send(command="/cmd:startcamscan")
 
     center.bus.register("channel_event", add_cam_job)
+
+
+def set_img_ok(center):
+    """Set field as imaged ok."""
+
+    async def set_sample_img_ok(center, event):
+        """Set sample field img ok."""
+        if not match_event(event, job_id=5):
+            return
+
+        await center.actions.sample.set_field(
+            plate_name=event.plate_name,
+            well_x=event.well_x,
+            well_y=event.well_y,
+            field_x=event.field_x,
+            field_y=event.field_y,
+            img_ok=True,
+        )
+
+    return center.bus.register("image_event", set_sample_img_ok)
 
 
 def stop_exp(center):
