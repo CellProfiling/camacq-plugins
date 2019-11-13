@@ -30,6 +30,7 @@ async def setup_module(center, config):
     image_next_well(center)
     analyze_gain(center)
     set_exp_gain(center)
+    add_exp_job(center)
     stop_exp(center)
 
 
@@ -195,6 +196,35 @@ def set_exp_gain(center):
         )
 
     center.bus.register("gain_calc_event", set_gain)
+
+
+def add_exp_job(center):
+    """Add experiment job."""
+
+    async def add_cam_job(center, event):
+        """Add an experiment job to the cam list."""
+        # TODO: Make channels layout configurable.
+        if not match_event(event, channel_name="red") or len(event.well.channels) != 4:
+            return
+
+        # TODO: Make well layout configurable.
+        commands = []
+        for field_x in range(2):
+            for field_y in range(3):
+                cmd = cam_com(
+                    "p10xexp", event.well_x, event.well_y, field_x, field_y, 0, 0
+                )
+                commands.append(cmd)
+
+        await center.actions.command.send(command=del_com())
+        await center.actions.command.send_many(commands=commands)
+
+        # TODO: Turn on rename image and set_img_ok during experiment job phase.
+
+        await center.actions.command.start_imaging()
+        await center.actions.command.send(command="/cmd:startcamscan")
+
+    center.bus.register("channel_event", add_cam_job)
 
 
 def stop_exp(center):
