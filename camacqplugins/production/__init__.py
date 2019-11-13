@@ -32,6 +32,7 @@ async def setup_module(center, config):
     set_exp_gain(center)
     add_exp_job(center)
     set_img_ok(center)
+    rename_exp_image(center)
     stop_exp(center)
 
 
@@ -246,6 +247,33 @@ def set_img_ok(center):
         )
 
     return center.bus.register("image_event", set_sample_img_ok)
+
+
+def rename_exp_image(center):
+    """Rename an experiment image."""
+
+    async def rename_image(center, event):
+        """Rename an image."""
+        if event.job_id not in (3, 4, 6):
+            return
+
+        if event.job_id == 3:
+            channel_id = event.channel_id
+        elif event.job_id == 4 and event.channel_id == 0:
+            channel_id = 1
+        elif event.job_id == 4 and event.channel_id == 1:
+            channel_id = 2
+        elif event.job_id == 6:
+            channel_id = 3
+
+        new_name = (
+            f"U{event.well_x:03}--V{event.well_y}--E{event.job_id}--X{event.field_x}"
+            f"--Y{event.field_y}--Z{event.z_slice}--C{channel_id}.ome.tif"
+        )
+
+        center.actions.rename(old_path=event.path, new_name=new_name)
+
+    center.bus.register("image_event", rename_image)
 
 
 def stop_exp(center):
