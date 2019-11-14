@@ -7,6 +7,7 @@ PROJECT_DIR = Path(__file__).parent.resolve()
 VERSION = (PROJECT_DIR / "camacqplugins" / "VERSION").read_text().strip()
 README_FILE = PROJECT_DIR / "README.md"
 LONG_DESCR = README_FILE.read_text(encoding="utf-8")
+REQUIRES = ["camacq"]
 
 
 setuptools.setup(
@@ -21,7 +22,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     packages=setuptools.find_packages(),
     python_requires=">=3.6",
-    install_requires=[],
+    install_requires=REQUIRES,
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
         "Programming Language :: Python",
