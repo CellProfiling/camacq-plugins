@@ -16,6 +16,7 @@ _LOGGER = logging.getLogger(__name__)
 SAMPLE_STATE_FILE = "state_file"
 START_STOP_DELAY = 2.0
 
+# pylint: disable=no-value-for-parameter
 CONFIG_SCHEMA = vol.Schema({"plot_save_path": vol.IsDir()}, extra=vol.ALLOW_EXTRA)
 
 
@@ -35,11 +36,15 @@ async def setup_module(center, config):
 
     state_file = conf.get(SAMPLE_STATE_FILE) if conf else None
     if state_file is not None:
+        x_wells = None
+        y_wells = None
         await load_sample(center, state_file)
         image_next_well_on_sample(center, gain_pattern, subscriptions)
     else:
+        x_wells = 12
+        y_wells = 8
         start_exp(center)
-        add_next_well(center)
+        add_next_well(center, x_wells, y_wells)
         image_next_well_on_event(center, gain_pattern, subscriptions)
 
     analyze_gain(center, plot_save_path)
@@ -47,7 +52,7 @@ async def setup_module(center, config):
     add_exp_job(center, exp_pattern, subscriptions)
     subscriptions.set_img_ok = set_img_ok(center)
     subscriptions.rename_exp_image = rename_exp_image(center)
-    stop_exp(center)
+    stop_exp(center, x_wells, y_wells)
 
 
 async def load_sample(center, state_file):
@@ -70,15 +75,13 @@ def start_exp(center):
     center.bus.register("camacq_start_event", set_start_well)
 
 
-def add_next_well(center):
+def add_next_well(center, x_wells, y_wells):
     """Add next well."""
 
     async def set_next_well(center, event):
         """Run on well event."""
         # TODO: Make well layout and stop field coordinates configurable.
         plate_name = "00"
-        x_wells = 12
-        y_wells = 8
         next_well_x, _ = next_well_xy(center.sample, plate_name, x_wells, y_wells)
 
         if (
@@ -325,18 +328,20 @@ def rename_exp_image(center):
             f"--Y{event.field_y}--Z{event.z_slice}--C{channel_id}.ome.tif"
         )
 
-        center.actions.rename_image.rename_image(old_path=event.path, new_name=new_name)
+        await center.actions.rename_image.rename_image(
+            old_path=event.path, new_name=new_name
+        )
 
     return center.bus.register("image_event", rename_image)
 
 
-def stop_exp(center):
+def stop_exp(center, x_wells, y_wells):
     """Trigger to stop experiment."""
 
     async def stop_imaging(center, event):
         """Run to stop the experiment."""
         # TODO: Make well layout and stop field coordinates configurable.
-        next_well_x, _ = next_well_xy(center.sample, "00", 12, 8)
+        next_well_x, _ = next_well_xy(center.sample, "00", x_wells, y_wells)
 
         if (
             not match_event(event, field_x=1, field_y=2, well_img_ok=True)
