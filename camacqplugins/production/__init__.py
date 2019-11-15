@@ -189,8 +189,7 @@ def analyze_gain(center):
             / f"{event.well_x}--{event.well_y}"
         )
 
-        # FIXME: Adjust the action type for plugins.gain to avoid period in the name.
-        await center.actions.plugins.gain.calc_gain(
+        await center.actions.gain.calc_gain(
             plate_name=event.plate_name,
             well_x=event.well_x,
             well_y=event.well_y,
@@ -314,7 +313,7 @@ def rename_exp_image(center):
             f"--Y{event.field_y}--Z{event.z_slice}--C{channel_id}.ome.tif"
         )
 
-        center.actions.rename(old_path=event.path, new_name=new_name)
+        center.actions.rename_image.rename_image(old_path=event.path, new_name=new_name)
 
     return center.bus.register("image_event", rename_image)
 
