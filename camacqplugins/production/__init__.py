@@ -23,13 +23,12 @@ async def setup_module(center, config):
     state_file = conf.get(SAMPLE_STATE_FILE) if conf else None
     if state_file is not None:
         await load_sample(center, state_file)
+        image_next_well_on_sample(center)
     else:
         start_exp(center)
+        add_next_well(center)
+        image_next_well_on_event(center)
 
-    # TODO: Only add wells if not loading sample state from file.
-
-    add_next_well(center)
-    image_next_well(center)
     analyze_gain(center)
     set_exp_gain(center)
     add_exp_job(center)
@@ -41,13 +40,11 @@ async def setup_module(center, config):
 async def load_sample(center, state_file):
     """Load sample state from file."""
     state_data = await center.add_executor_job(read_csv, state_file)
-    tasks = []
     for data in state_data:
-        for action in center.actions.sample.values():
-            tasks.append(center.create_task(action(silent=True, **data)))
-
-    if tasks:
-        await asyncio.wait(tasks)
+        await center.actions.sample.set_plate(silent=True, **data)
+        await center.actions.sample.set_well(silent=True, **data)
+        await center.actions.sample.set_channel(silent=True, **data)
+        await center.actions.sample.set_field(silent=True, **data)
 
 
 def start_exp(center):
@@ -90,7 +87,40 @@ def add_next_well(center):
     center.bus.register("well_event", set_next_well)
 
 
-def image_next_well(center):
+def image_next_well_on_sample(center):
+    """Image next well in existing sample."""
+
+    async def send_cam_job(center, event):
+        """Run on well event."""
+        # TODO: Make stop field coordinates configurable.
+        plate_name = "00"
+        next_well_x, next_well_y = next_well_xy(center.sample, plate_name)
+
+        if (
+            not match_event(event, event_type="camacq_start_event")
+            and not match_event(event, field_x=1, field_y=2, well_img_ok=True)
+            or next_well_x is None
+        ):
+            return
+
+        await center.actions.command.send(command=del_com())
+        # TODO: Make exp job and field coordinates configurable.
+        command = cam_com("p10xgain", next_well_x, next_well_y, 0, 1, 0, 0)
+        await center.actions.command.send(command=command)
+        command = cam_com("p10xgain", next_well_x, next_well_y, 1, 1, 0, 0)
+        await center.actions.command.send(command=command)
+
+        # TODO: Unregister rename image and set img ok.
+
+        await center.actions.command.start_imaging()
+        await asyncio.sleep(START_STOP_DELAY)
+        await center.actions.command.send(command="/cmd:startcamscan")
+
+    center.bus.register("camacq_start_event", send_cam_job)
+    center.bus.register("well_event", send_cam_job)
+
+
+def image_next_well_on_event(center):
     """Image next well."""
 
     async def send_cam_job(center, event):
