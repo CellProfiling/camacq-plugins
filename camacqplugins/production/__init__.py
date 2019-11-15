@@ -52,6 +52,7 @@ async def setup_module(center, config):
     add_exp_job(center, exp_pattern, subscriptions)
     subscriptions.set_img_ok = set_img_ok(center)
     subscriptions.rename_exp_image = rename_exp_image(center)
+    # FIXME: Make stop exp work for state file.
     stop_exp(center, x_wells, y_wells)
 
 
