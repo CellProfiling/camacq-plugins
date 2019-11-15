@@ -4,6 +4,8 @@ import logging
 import tempfile
 from pathlib import Path
 
+import voluptuous as vol
+
 from camacq.event import match_event
 from camacq.plugins.leica.command import cam_com, del_com, gain_com
 from camacq.plugins.sample.helper import next_well_xy
@@ -14,27 +16,33 @@ _LOGGER = logging.getLogger(__name__)
 SAMPLE_STATE_FILE = "state_file"
 START_STOP_DELAY = 2.0
 
+CONFIG_SCHEMA = vol.Schema({"plot_save_path": vol.IsDir()}, extra=vol.ALLOW_EXTRA)
+
 
 async def setup_module(center, config):
     """Set up production plugin."""
     conf = config["production"]
-    gain_job = conf["gain_job_name"]
+
+    conf = CONFIG_SCHEMA(conf)
+
+    gain_pattern = conf["gain_pattern_name"]
     green_job = conf["green_job_name"]
     blue_yellow_job = conf["blue_yellow_job_name"]
     red_job = conf["red_job_name"]
     exp_pattern = conf["exp_pattern_name"]
+    plot_save_path = conf.get("plot_save_path")
     subscriptions = dotdict()
 
     state_file = conf.get(SAMPLE_STATE_FILE) if conf else None
     if state_file is not None:
         await load_sample(center, state_file)
-        image_next_well_on_sample(center, gain_job, subscriptions)
+        image_next_well_on_sample(center, gain_pattern, subscriptions)
     else:
         start_exp(center)
         add_next_well(center)
-        image_next_well_on_event(center, gain_job, subscriptions)
+        image_next_well_on_event(center, gain_pattern, subscriptions)
 
-    analyze_gain(center)
+    analyze_gain(center, plot_save_path)
     set_exp_gain(center, green_job, blue_yellow_job, red_job)
     add_exp_job(center, exp_pattern, subscriptions)
     subscriptions.set_img_ok = set_img_ok(center)
@@ -92,7 +100,7 @@ def add_next_well(center):
     center.bus.register("well_event", set_next_well)
 
 
-def image_next_well_on_sample(center, gain_job, subscriptions):
+def image_next_well_on_sample(center, gain_pattern, subscriptions):
     """Image next well in existing sample."""
 
     async def send_cam_job(center, event):
@@ -110,9 +118,9 @@ def image_next_well_on_sample(center, gain_job, subscriptions):
 
         await center.actions.command.send(command=del_com())
         # TODO: Make field coordinates configurable.
-        command = cam_com(gain_job, next_well_x, next_well_y, 0, 1, 0, 0)
+        command = cam_com(gain_pattern, next_well_x, next_well_y, 0, 1, 0, 0)
         await center.actions.command.send(command=command)
-        command = cam_com(gain_job, next_well_x, next_well_y, 1, 1, 0, 0)
+        command = cam_com(gain_pattern, next_well_x, next_well_y, 1, 1, 0, 0)
         await center.actions.command.send(command=command)
 
         if subscriptions.set_img_ok is not None:
@@ -130,7 +138,7 @@ def image_next_well_on_sample(center, gain_job, subscriptions):
     center.bus.register("well_event", send_cam_job)
 
 
-def image_next_well_on_event(center, gain_job, subscriptions):
+def image_next_well_on_event(center, gain_pattern, subscriptions):
     """Image next well."""
 
     async def send_cam_job(center, event):
@@ -140,9 +148,9 @@ def image_next_well_on_event(center, gain_job, subscriptions):
 
         await center.actions.command.send(command=del_com())
         # TODO: Make field coordinates configurable.
-        command = cam_com(gain_job, event.well.x, event.well.y, 0, 1, 0, 0)
+        command = cam_com(gain_pattern, event.well.x, event.well.y, 0, 1, 0, 0)
         await center.actions.command.send(command=command)
-        command = cam_com(gain_job, event.well.x, event.well.y, 1, 1, 0, 0)
+        command = cam_com(gain_pattern, event.well.x, event.well.y, 1, 1, 0, 0)
         await center.actions.command.send(command=command)
 
         if subscriptions.set_img_ok is not None:
@@ -159,7 +167,7 @@ def image_next_well_on_event(center, gain_job, subscriptions):
     center.bus.register("well_event", send_cam_job)
 
 
-def analyze_gain(center):
+def analyze_gain(center, save_path):
     """Analyze gain."""
 
     async def calc_gain(center, event):
@@ -182,12 +190,16 @@ def analyze_gain(center):
         await center.actions.command.stop_imaging()
         await asyncio.sleep(START_STOP_DELAY)
 
+        nonlocal save_path
+        if save_path is None:
+            save_path = Path(tempfile.gettempdir()) / event.plate_name
+        else:
+            save_path = Path(save_path)
+        if not save_path.exists():
+            await center.add_executor_job(save_path.mkdir)
+
         # This should be a path to a base file name, not to an actual dir or file.
-        save_path = (
-            Path(tempfile.gettempdir())
-            / event.plate_name
-            / f"{event.well_x}--{event.well_y}"
-        )
+        save_path = save_path / f"{event.well_x}--{event.well_y}"
 
         await center.actions.gain.calc_gain(
             plate_name=event.plate_name,
