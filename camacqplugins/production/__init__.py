@@ -26,6 +26,8 @@ async def setup_module(center, config):
     else:
         start_exp(center)
 
+    # TODO: Only add wells if not loading sample state from file.
+
     add_next_well(center)
     image_next_well(center)
     analyze_gain(center)
@@ -67,7 +69,7 @@ def add_next_well(center):
         plate_name = "00"
         x_wells = 12
         y_wells = 8
-        next_well_x, _ = next_well_xy(plate_name, x_wells, y_wells)
+        next_well_x, _ = next_well_xy(center.sample, plate_name, x_wells, y_wells)
 
         if (
             not match_event(event, field_x=1, field_y=2, well_img_ok=True)
@@ -79,9 +81,7 @@ def add_next_well(center):
         await center.actions.command.stop_imaging()
         await asyncio.sleep(2 * START_STOP_DELAY)
 
-        well_x, well_y = next_well_xy(
-            center.sample, plate_name, x_wells=x_wells, y_wells=y_wells
-        )
+        well_x, well_y = next_well_xy(center.sample, plate_name, x_wells, y_wells)
 
         await center.actions.sample.set_well(
             plate_name=plate_name, well_x=well_x, well_y=well_y
@@ -282,7 +282,7 @@ def stop_exp(center):
     async def stop_imaging(center, event):
         """Run to stop the experiment."""
         # TODO: Make well layout and stop field coordinates configurable.
-        next_well_x, _ = next_well_xy("00", 12, 8)
+        next_well_x, _ = next_well_xy(center.sample, "00", 12, 8)
 
         if (
             not match_event(event, field_x=1, field_y=2, well_img_ok=True)
