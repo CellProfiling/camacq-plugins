@@ -7,7 +7,7 @@ from pathlib import Path
 from camacq.event import match_event
 from camacq.plugins.leica.command import cam_com, del_com, gain_com
 from camacq.plugins.sample.helper import next_well_xy
-from camacq.util import read_csv
+from camacq.util import dotdict, read_csv
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -23,21 +23,22 @@ async def setup_module(center, config):
     blue_yellow_job = conf["blue_yellow_job_name"]
     red_job = conf["red_job_name"]
     exp_pattern = conf["exp_pattern_name"]
+    subscriptions = dotdict()
 
     state_file = conf.get(SAMPLE_STATE_FILE) if conf else None
     if state_file is not None:
         await load_sample(center, state_file)
-        image_next_well_on_sample(center, gain_job)
+        image_next_well_on_sample(center, gain_job, subscriptions)
     else:
         start_exp(center)
         add_next_well(center)
-        image_next_well_on_event(center, gain_job)
+        image_next_well_on_event(center, gain_job, subscriptions)
 
     analyze_gain(center)
     set_exp_gain(center, green_job, blue_yellow_job, red_job)
-    add_exp_job(center, exp_pattern)
-    set_img_ok(center)
-    rename_exp_image(center)
+    add_exp_job(center, exp_pattern, subscriptions)
+    subscriptions.set_img_ok = set_img_ok(center)
+    subscriptions.rename_exp_image = rename_exp_image(center)
     stop_exp(center)
 
 
@@ -91,7 +92,7 @@ def add_next_well(center):
     center.bus.register("well_event", set_next_well)
 
 
-def image_next_well_on_sample(center, gain_job):
+def image_next_well_on_sample(center, gain_job, subscriptions):
     """Image next well in existing sample."""
 
     async def send_cam_job(center, event):
@@ -114,7 +115,12 @@ def image_next_well_on_sample(center, gain_job):
         command = cam_com(gain_job, next_well_x, next_well_y, 1, 1, 0, 0)
         await center.actions.command.send(command=command)
 
-        # TODO: Unregister rename image and set img ok.
+        if subscriptions.set_img_ok is not None:
+            subscriptions.set_img_ok()
+            subscriptions.set_img_ok = None
+        if subscriptions.rename_exp_image is not None:
+            subscriptions.rename_exp_image()
+            subscriptions.rename_exp_image = None
 
         await center.actions.command.start_imaging()
         await asyncio.sleep(START_STOP_DELAY)
@@ -124,7 +130,7 @@ def image_next_well_on_sample(center, gain_job):
     center.bus.register("well_event", send_cam_job)
 
 
-def image_next_well_on_event(center, gain_job):
+def image_next_well_on_event(center, gain_job, subscriptions):
     """Image next well."""
 
     async def send_cam_job(center, event):
@@ -139,7 +145,12 @@ def image_next_well_on_event(center, gain_job):
         command = cam_com(gain_job, event.well.x, event.well.y, 1, 1, 0, 0)
         await center.actions.command.send(command=command)
 
-        # TODO: Unregister rename image and set img ok.
+        if subscriptions.set_img_ok is not None:
+            subscriptions.set_img_ok()
+            subscriptions.set_img_ok = None
+        if subscriptions.rename_exp_image is not None:
+            subscriptions.rename_exp_image()
+            subscriptions.rename_exp_image = None
 
         await center.actions.command.start_imaging()
         await asyncio.sleep(START_STOP_DELAY)
@@ -229,7 +240,7 @@ def set_exp_gain(center, green_job, blue_yellow_job, red_job):
     center.bus.register("gain_calc_event", set_gain)
 
 
-def add_exp_job(center, exp_pattern):
+def add_exp_job(center, exp_pattern, subscriptions):
     """Add experiment job."""
 
     async def add_cam_job(center, event):
@@ -250,7 +261,10 @@ def add_exp_job(center, exp_pattern):
         await center.actions.command.send(command=del_com())
         await center.actions.command.send_many(commands=commands)
 
-        # TODO: Turn on rename image and set_img_ok during experiment job phase.
+        if subscriptions.set_img_ok is not None:
+            subscriptions.set_img_ok = set_img_ok(center)
+        if subscriptions.rename_exp_image is None:
+            subscriptions.rename_exp_image = rename_exp_image(center)
 
         await center.actions.command.start_imaging()
         await center.actions.command.send(command="/cmd:startcamscan")
@@ -302,7 +316,7 @@ def rename_exp_image(center):
 
         center.actions.rename(old_path=event.path, new_name=new_name)
 
-    center.bus.register("image_event", rename_image)
+    return center.bus.register("image_event", rename_image)
 
 
 def stop_exp(center):
