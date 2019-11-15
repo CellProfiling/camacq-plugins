@@ -17,21 +17,25 @@ START_STOP_DELAY = 2.0
 
 async def setup_module(center, config):
     """Set up production plugin."""
-    print("Production plugin setup!")
-
     conf = config["production"]
+    gain_job = conf["gain_job_name"]
+    green_job = conf["green_job_name"]
+    blue_yellow_job = conf["blue_yellow_job_name"]
+    red_job = conf["red_job_name"]
+    exp_pattern = conf["exp_pattern_name"]
+
     state_file = conf.get(SAMPLE_STATE_FILE) if conf else None
     if state_file is not None:
         await load_sample(center, state_file)
-        image_next_well_on_sample(center)
+        image_next_well_on_sample(center, gain_job)
     else:
         start_exp(center)
         add_next_well(center)
-        image_next_well_on_event(center)
+        image_next_well_on_event(center, gain_job)
 
     analyze_gain(center)
-    set_exp_gain(center)
-    add_exp_job(center)
+    set_exp_gain(center, green_job, blue_yellow_job, red_job)
+    add_exp_job(center, exp_pattern)
     set_img_ok(center)
     rename_exp_image(center)
     stop_exp(center)
@@ -87,7 +91,7 @@ def add_next_well(center):
     center.bus.register("well_event", set_next_well)
 
 
-def image_next_well_on_sample(center):
+def image_next_well_on_sample(center, gain_job):
     """Image next well in existing sample."""
 
     async def send_cam_job(center, event):
@@ -104,10 +108,10 @@ def image_next_well_on_sample(center):
             return
 
         await center.actions.command.send(command=del_com())
-        # TODO: Make exp job and field coordinates configurable.
-        command = cam_com("p10xgain", next_well_x, next_well_y, 0, 1, 0, 0)
+        # TODO: Make field coordinates configurable.
+        command = cam_com(gain_job, next_well_x, next_well_y, 0, 1, 0, 0)
         await center.actions.command.send(command=command)
-        command = cam_com("p10xgain", next_well_x, next_well_y, 1, 1, 0, 0)
+        command = cam_com(gain_job, next_well_x, next_well_y, 1, 1, 0, 0)
         await center.actions.command.send(command=command)
 
         # TODO: Unregister rename image and set img ok.
@@ -120,7 +124,7 @@ def image_next_well_on_sample(center):
     center.bus.register("well_event", send_cam_job)
 
 
-def image_next_well_on_event(center):
+def image_next_well_on_event(center, gain_job):
     """Image next well."""
 
     async def send_cam_job(center, event):
@@ -129,10 +133,10 @@ def image_next_well_on_event(center):
             return
 
         await center.actions.command.send(command=del_com())
-        # TODO: Make exp job and field coordinates configurable.
-        command = cam_com("p10xgain", event.well.x, event.well.y, 0, 1, 0, 0)
+        # TODO: Make field coordinates configurable.
+        command = cam_com(gain_job, event.well.x, event.well.y, 0, 1, 0, 0)
         await center.actions.command.send(command=command)
-        command = cam_com("p10xgain", event.well.x, event.well.y, 1, 1, 0, 0)
+        command = cam_com(gain_job, event.well.x, event.well.y, 1, 1, 0, 0)
         await center.actions.command.send(command=command)
 
         # TODO: Unregister rename image and set img ok.
@@ -186,30 +190,25 @@ def analyze_gain(center):
     center.bus.register("image_event", calc_gain)
 
 
-def set_exp_gain(center):
+def set_exp_gain(center, green_job, blue_yellow_job, red_job):
     """Set experiment gain."""
 
     async def set_gain(center, event):
         """Set pmt gain."""
-        # TODO:  Make exp job names configurable.
-        exp_job_1 = "exp_job_1"
-        exp_job_2 = "exp_job_2"
-        exp_job_3 = "exp_job_3"
-
         if event.channel_name == "green":
-            exp = exp_job_1
+            exp = green_job
             num = 1
             gain = min(event.gain or 800, 800)
         elif event.channel_name == "blue":
-            exp = exp_job_2
+            exp = blue_yellow_job
             num = 1
             gain = min(event.gain or 505, 610)
         elif event.channel_name == "yellow":
-            exp = exp_job_2
+            exp = blue_yellow_job
             num = 2
             gain = min(event.gain or 655, 760)
         elif event.channel_name == "red":
-            exp = exp_job_3
+            exp = red_job
             num = 2
             gain = event.gain or 630
             gain = min(gain + 25, 735)
@@ -230,7 +229,7 @@ def set_exp_gain(center):
     center.bus.register("gain_calc_event", set_gain)
 
 
-def add_exp_job(center):
+def add_exp_job(center, exp_pattern):
     """Add experiment job."""
 
     async def add_cam_job(center, event):
@@ -244,7 +243,7 @@ def add_exp_job(center):
         for field_x in range(2):
             for field_y in range(3):
                 cmd = cam_com(
-                    "p10xexp", event.well_x, event.well_y, field_x, field_y, 0, 0
+                    exp_pattern, event.well_x, event.well_y, field_x, field_y, 0, 0
                 )
                 commands.append(cmd)
 
