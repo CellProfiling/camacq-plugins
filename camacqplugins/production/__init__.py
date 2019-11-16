@@ -15,15 +15,22 @@ _LOGGER = logging.getLogger(__name__)
 SAMPLE_STATE_FILE = "state_file"
 
 # pylint: disable=no-value-for-parameter
-CONFIG_SCHEMA = vol.Schema({"plot_save_path": vol.IsDir()}, extra=vol.ALLOW_EXTRA)
+CONFIG_SCHEMA = vol.Schema(
+    {
+        vol.Required("gain_pattern_name"): vol.Coerce(str),
+        vol.Required("green_job_name"): vol.Coerce(str),
+        vol.Required("blue_yellow_job_name"): vol.Coerce(str),
+        vol.Required("red_job_name"): vol.Coerce(str),
+        vol.Required("exp_pattern_name"): vol.Coerce(str),
+        "plot_save_path": vol.IsDir(),
+    },
+    extra=vol.ALLOW_EXTRA,
+)
 
 
 async def setup_module(center, config):
     """Set up production plugin."""
     conf = config["production"]
-
-    conf = CONFIG_SCHEMA(conf)
-
     gain_pattern = conf["gain_pattern_name"]
     green_job = conf["green_job_name"]
     blue_yellow_job = conf["blue_yellow_job_name"]
