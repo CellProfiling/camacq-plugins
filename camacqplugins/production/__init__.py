@@ -1,5 +1,4 @@
 """Provide a plugin for production standard flow."""
-import asyncio
 import logging
 import tempfile
 from pathlib import Path
@@ -14,7 +13,6 @@ from camacq.util import dotdict, read_csv
 _LOGGER = logging.getLogger(__name__)
 
 SAMPLE_STATE_FILE = "state_file"
-START_STOP_DELAY = 2.0
 
 # pylint: disable=no-value-for-parameter
 CONFIG_SCHEMA = vol.Schema({"plot_save_path": vol.IsDir()}, extra=vol.ALLOW_EXTRA)
@@ -91,9 +89,7 @@ def add_next_well(center, x_wells, y_wells):
         ):
             return
 
-        await asyncio.sleep(START_STOP_DELAY)
         await center.actions.command.stop_imaging()
-        await asyncio.sleep(2 * START_STOP_DELAY)
 
         well_x, well_y = next_well_xy(center.sample, plate_name, x_wells, y_wells)
 
@@ -135,7 +131,6 @@ def image_next_well_on_sample(center, gain_pattern, subscriptions):
             subscriptions.rename_exp_image = None
 
         await center.actions.command.start_imaging()
-        await asyncio.sleep(START_STOP_DELAY)
         await center.actions.command.send(command="/cmd:startcamscan")
 
     center.bus.register("camacq_start_event", send_cam_job)
@@ -165,7 +160,6 @@ def image_next_well_on_event(center, gain_pattern, subscriptions):
             subscriptions.rename_exp_image = None
 
         await center.actions.command.start_imaging()
-        await asyncio.sleep(START_STOP_DELAY)
         await center.actions.command.send(command="/cmd:startcamscan")
 
     center.bus.register("well_event", send_cam_job)
@@ -190,9 +184,7 @@ def analyze_gain(center, save_path):
         ):
             return
 
-        await asyncio.sleep(START_STOP_DELAY)
         await center.actions.command.stop_imaging()
-        await asyncio.sleep(START_STOP_DELAY)
 
         nonlocal save_path
         if save_path is None:
@@ -351,7 +343,6 @@ def stop_exp(center, x_wells, y_wells):
             return
 
         # Sleep to let images be completely scanned before stopping.
-        await asyncio.sleep(START_STOP_DELAY)
         await center.actions.api.stop_imaging()
 
     center.bus.register("well_event", stop_imaging)
