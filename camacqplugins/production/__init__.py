@@ -14,7 +14,6 @@ _LOGGER = logging.getLogger(__name__)
 
 SAMPLE_STATE_FILE = "state_file"
 
-# pylint: disable=no-value-for-parameter
 CONFIG_SCHEMA = vol.Schema(
     {
         vol.Required("gain_pattern_name"): vol.Coerce(str),
@@ -32,6 +31,7 @@ CONFIG_SCHEMA = vol.Schema(
             vol.Required("x_fields"): vol.Coerce(int),
             vol.Required("y_fields"): vol.Coerce(int),
         },
+        # pylint: disable=no-value-for-parameter
         "plot_save_path": vol.IsDir(),
         SAMPLE_STATE_FILE: vol.IsFile(),
     },
@@ -362,7 +362,6 @@ def stop_exp(center, x_wells, y_wells, well_layout):
         ):
             return
 
-        # Sleep to let images be completely scanned before stopping.
         await center.actions.api.stop_imaging()
 
     center.bus.register("well_event", stop_imaging)
