@@ -303,6 +303,7 @@ def set_img_ok(center):
 
 def rename_exp_image(center):
     """Rename an experiment image."""
+    # TODO: Make experiment pattern job_ids configurable.
 
     async def rename_image(center, event):
         """Rename an image."""
