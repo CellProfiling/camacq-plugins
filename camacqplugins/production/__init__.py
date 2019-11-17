@@ -18,13 +18,19 @@ SAMPLE_STATE_FILE = "state_file"
 CONFIG_SCHEMA = vol.Schema(
     {
         vol.Required("gain_pattern_name"): vol.Coerce(str),
-        vol.Required("green_job_name"): vol.Coerce(str),
-        vol.Required("blue_yellow_job_name"): vol.Coerce(str),
-        vol.Required("red_job_name"): vol.Coerce(str),
         vol.Required("exp_pattern_name"): vol.Coerce(str),
+        vol.Required("channels"): [
+            {
+                vol.Required("channel"): vol.Coerce(str),
+                vol.Required("job_name"): vol.Coerce(str),
+                vol.Required("detector_num"): vol.Coerce(int),
+                vol.Required("default_gain"): vol.Coerce(int),
+                vol.Required("max_gain"): vol.Coerce(int),
+            }
+        ],
         "plot_save_path": vol.IsDir(),
+        SAMPLE_STATE_FILE: vol.IsFile(),
     },
-    extra=vol.ALLOW_EXTRA,
 )
 
 
@@ -32,14 +38,12 @@ async def setup_module(center, config):
     """Set up production plugin."""
     conf = config["production"]
     gain_pattern = conf["gain_pattern_name"]
-    green_job = conf["green_job_name"]
-    blue_yellow_job = conf["blue_yellow_job_name"]
-    red_job = conf["red_job_name"]
     exp_pattern = conf["exp_pattern_name"]
+    channels = conf["channels"]
     plot_save_path = conf.get("plot_save_path")
     subscriptions = dotdict()
 
-    state_file = conf.get(SAMPLE_STATE_FILE) if conf else None
+    state_file = conf.get(SAMPLE_STATE_FILE)
     if state_file is not None:
         x_wells = None
         y_wells = None
@@ -53,8 +57,8 @@ async def setup_module(center, config):
         image_next_well_on_event(center, gain_pattern, subscriptions)
 
     analyze_gain(center, plot_save_path)
-    set_exp_gain(center, green_job, blue_yellow_job, red_job)
-    add_exp_job(center, exp_pattern, subscriptions)
+    set_exp_gain(center, channels)
+    add_exp_job(center, channels, exp_pattern, subscriptions)
     subscriptions.set_img_ok = set_img_ok(center)
     subscriptions.rename_exp_image = rename_exp_image(center)
     # FIXME: Make stop exp work for state file.
@@ -215,28 +219,17 @@ def analyze_gain(center, save_path):
     center.bus.register("image_event", calc_gain)
 
 
-def set_exp_gain(center, green_job, blue_yellow_job, red_job):
+def set_exp_gain(center, channels):
     """Set experiment gain."""
 
     async def set_gain(center, event):
         """Set pmt gain."""
-        if event.channel_name == "green":
-            exp = green_job
-            num = 1
-            gain = min(event.gain or 800, 800)
-        elif event.channel_name == "blue":
-            exp = blue_yellow_job
-            num = 1
-            gain = min(event.gain or 505, 610)
-        elif event.channel_name == "yellow":
-            exp = blue_yellow_job
-            num = 2
-            gain = min(event.gain or 655, 760)
-        elif event.channel_name == "red":
-            exp = red_job
-            num = 2
-            gain = event.gain or 630
-            gain = min(gain + 25, 735)
+        for channel in channels:
+            if event.channel_name != channel["channel"]:
+                continue
+            exp = channel["job_name"]
+            num = channel["detector_num"]
+            gain = min(event.gain or channel["default_gain"], channel["max_gain"])
 
         command = gain_com(exp=exp, num=num, value=gain)
 
@@ -254,13 +247,15 @@ def set_exp_gain(center, green_job, blue_yellow_job, red_job):
     center.bus.register("gain_calc_event", set_gain)
 
 
-def add_exp_job(center, exp_pattern, subscriptions):
+def add_exp_job(center, channels, exp_pattern, subscriptions):
     """Add experiment job."""
 
     async def add_cam_job(center, event):
         """Add an experiment job to the cam list."""
-        # TODO: Make channels layout configurable.
-        if not match_event(event, channel_name="red") or len(event.well.channels) != 4:
+        last_channel = channels[-1]
+        if not match_event(event, channel_name=last_channel["channel"]) or len(
+            event.well.channels
+        ) != len(channels):
             return
 
         # TODO: Make well layout configurable.
