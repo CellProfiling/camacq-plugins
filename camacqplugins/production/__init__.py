@@ -67,7 +67,6 @@ async def setup_module(center, config):
     add_exp_job(center, channels, exp_pattern, subscriptions, well_layout)
     subscriptions.set_img_ok = set_img_ok(center)
     subscriptions.rename_exp_image = rename_exp_image(center)
-    # FIXME: Make stop exp work for state file.
     stop_exp(center, x_wells, y_wells, well_layout)
 
 
@@ -295,7 +294,7 @@ def add_exp_job(center, channels, exp_pattern, subscriptions, well_layout):
         await center.actions.command.send(command=del_com())
         await center.actions.command.send_many(commands=commands)
 
-        if subscriptions.set_img_ok is not None:
+        if subscriptions.set_img_ok is None:
             subscriptions.set_img_ok = set_img_ok(center)
         if subscriptions.rename_exp_image is None:
             subscriptions.rename_exp_image = rename_exp_image(center)
@@ -362,18 +361,16 @@ def stop_exp(center, x_wells, y_wells, well_layout):
     async def stop_imaging(center, event):
         """Run to stop the experiment."""
         next_well_x, _ = next_well_xy(center.sample, "00", x_wells, y_wells)
+        match = match_event(
+            event,
+            field_x=well_layout["x_fields"] - 1,
+            field_y=well_layout["y_fields"] - 1,
+            well_img_ok=True,
+        )
 
-        if (
-            not match_event(
-                event,
-                field_x=well_layout["x_fields"] - 1,
-                field_y=well_layout["y_fields"] - 1,
-                well_img_ok=True,
-            )
-            or next_well_x is not None
-        ):
+        if not match or next_well_x is not None:
             return
 
-        await center.actions.api.stop_imaging()
+        await center.actions.command.stop_imaging()
 
     center.bus.register("well_event", stop_imaging)
