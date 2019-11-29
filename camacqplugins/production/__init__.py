@@ -1,4 +1,5 @@
 """Provide a plugin for production standard flow."""
+import asyncio
 import logging
 import tempfile
 from pathlib import Path
@@ -61,7 +62,7 @@ async def setup_module(center, config):
         add_next_well(center, x_wells, y_wells, well_layout)
         image_next_well_on_event(center, gain_pattern, subscriptions)
 
-    analyze_gain(center, plot_save_path)
+    analyze_gain(center, plot_save_path, asyncio.Lock())
     set_exp_gain(center, channels)
     add_exp_job(center, channels, exp_pattern, subscriptions, well_layout)
     subscriptions.set_img_ok = set_img_ok(center)
@@ -189,7 +190,7 @@ def image_next_well_on_event(center, gain_pattern, subscriptions):
     center.bus.register("well_event", send_cam_job)
 
 
-def analyze_gain(center, save_path):
+def analyze_gain(center, save_path, gain_lock):
     """Analyze gain."""
 
     async def calc_gain(center, event):
@@ -209,26 +210,37 @@ def analyze_gain(center, save_path):
         ):
             return
 
-        await center.actions.command.stop_imaging()
+        # Guard against duplicate image events.
+        async with gain_lock:
+            well = center.sample.get_well(
+                plate_name=event.plate_name, well_x=event.well_x, well_y=event.well_y
+            )
+            gain_set = any(
+                channel.gain is not None for channel in well.channels.values()
+            )
+            if gain_set:
+                return
 
-        nonlocal save_path
-        if save_path is None:
-            save_path = Path(tempfile.gettempdir()) / event.plate_name
-        else:
-            save_path = Path(save_path)
-        if not save_path.exists():
-            await center.add_executor_job(save_path.mkdir)
+            await center.actions.command.stop_imaging()
 
-        # This should be a path to a base file name, not to an actual dir or file.
-        save_path = save_path / f"{event.well_x}--{event.well_y}"
+            nonlocal save_path
+            if save_path is None:
+                save_path = Path(tempfile.gettempdir()) / event.plate_name
+            else:
+                save_path = Path(save_path)
+            if not save_path.exists():
+                await center.add_executor_job(save_path.mkdir)
 
-        await center.actions.gain.calc_gain(
-            plate_name=event.plate_name,
-            well_x=event.well_x,
-            well_y=event.well_y,
-            make_plots=True,
-            save_path=save_path,
-        )
+            # This should be a path to a base file name, not to an actual dir or file.
+            save_path = save_path / f"{event.well_x}--{event.well_y}"
+
+            await center.actions.gain.calc_gain(
+                plate_name=event.plate_name,
+                well_x=event.well_x,
+                well_y=event.well_y,
+                make_plots=True,
+                save_path=save_path,
+            )
 
     center.bus.register("image_event", calc_gain)
 
