@@ -1,0 +1,56 @@
+production:
+  #state_file: "/path/to/sample_state.csv"
+  gain_pattern_name: p10xgain
+  exp_pattern_name: p10xexp
+  channels:
+  - channel: green
+    job_name: green10x
+    detector_num: 1
+    default_gain: 800
+    max_gain: 800
+  - channel: blue
+    job_name: blue10x
+    detector_num: 1
+    default_gain: 505
+    max_gain: 610
+  - channel: yellow
+    job_name: blue10x
+    detector_num: 2
+    default_gain: 655
+    max_gain: 760
+  - channel: red
+    job_name: red10x
+    detector_num: 2
+    default_gain: 630
+    max_gain: 735
+  well_layout:
+    x_fields: 2
+    y_fields: 3
+  #plot_save_path: "/path/to/gains/dir/00/"
+
+  gain:
+    channels:
+    - channel: green
+      init_gain: [450, 495, 540, 585, 630, 675, 720, 765, 810, 855, 900]
+    - channel: blue
+      # 63x
+      #init_gain: [750, 730, 765, 800, 835, 870, 905]
+      # 10x
+      init_gain: [700, 735, 770, 805, 840, 875, 910]
+    - channel: yellow
+      # 63x
+      #init_gain: [550, 585, 620, 655, 690, 725, 760]
+      # 10x
+      init_gain: [700, 735, 770, 805, 840, 875, 910]
+    - channel: red
+      # 63x
+      #init_gain: [525, 560, 595, 630, 665, 700, 735]
+      # 10x
+      init_gain: [600, 635, 670, 705, 740, 775, 810]
+    #save_dir: "/path/to/gains/dir"
+
+rename_image:
+
+leica:
+  host: localhost
+  #imaging_dir: '/path/to/imaging_dir'
