@@ -335,7 +335,7 @@ def rename_exp_image(center, exp_job_ids):
 
     async def rename_image(center, event):
         """Rename an image."""
-        if event.job_id not in exp_job_ids:
+        if event.job_id not in exp_job_ids or event.channel_id not in (0, 1):
             return
 
         if event.job_id == exp_job_ids[0]:
