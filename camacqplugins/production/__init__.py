@@ -347,8 +347,9 @@ def rename_exp_image(center, exp_job_ids):
             channel_id = 3
 
         new_name = (
-            f"U{event.well_x:03}--V{event.well_y}--E{event.job_id}--X{event.field_x}"
-            f"--Y{event.field_y}--Z{event.z_slice}--C{channel_id}.ome.tif"
+            f"U{event.well_x:02}--V{event.well_y:02}--E{event.job_id:02}--"
+            f"X{event.field_x:02}--Y{event.field_y:02}--"
+            f"Z{event.z_slice:02}--C{channel_id:02}.ome.tif"
         )
 
         await center.actions.rename_image.rename_image(
