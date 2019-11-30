@@ -2,6 +2,7 @@
 import asyncio
 import logging
 import tempfile
+from math import ceil
 from pathlib import Path
 
 import voluptuous as vol
@@ -46,6 +47,8 @@ async def setup_module(center, config):
     exp_pattern = conf["exp_pattern_name"]
     channels = conf["channels"]
     well_layout = conf["well_layout"]
+    x_fields = well_layout["x_fields"]
+    y_fields = well_layout["y_fields"]
     plot_save_path = conf.get("plot_save_path")
     subscriptions = dotdict()
 
@@ -54,20 +57,24 @@ async def setup_module(center, config):
         x_wells = None
         y_wells = None
         await load_sample(center, state_file)
-        image_next_well_on_sample(center, gain_pattern, subscriptions, well_layout)
+        image_next_well_on_sample(
+            center, gain_pattern, subscriptions, x_fields, y_fields
+        )
     else:
         x_wells = 12
         y_wells = 8
         start_exp(center)
-        add_next_well(center, x_wells, y_wells, well_layout)
-        image_next_well_on_event(center, gain_pattern, subscriptions)
+        add_next_well(center, x_wells, y_wells, x_fields, y_fields)
+        image_next_well_on_event(
+            center, gain_pattern, subscriptions, x_fields, y_fields
+        )
 
     analyze_gain(center, plot_save_path, asyncio.Lock())
     set_exp_gain(center, channels)
-    add_exp_job(center, channels, exp_pattern, subscriptions, well_layout)
+    add_exp_job(center, channels, exp_pattern, subscriptions, x_fields, y_fields)
     subscriptions.set_img_ok = set_img_ok(center)
     subscriptions.rename_exp_image = rename_exp_image(center)
-    stop_exp(center, x_wells, y_wells, well_layout)
+    stop_exp(center, x_wells, y_wells, x_fields, y_fields)
 
 
 async def load_sample(center, state_file):
@@ -90,7 +97,7 @@ def start_exp(center):
     center.bus.register("camacq_start_event", set_start_well)
 
 
-def add_next_well(center, x_wells, y_wells, well_layout):
+def add_next_well(center, x_wells, y_wells, x_fields, y_fields):
     """Add next well."""
 
     async def set_next_well(center, event):
@@ -100,10 +107,7 @@ def add_next_well(center, x_wells, y_wells, well_layout):
 
         if (
             not match_event(
-                event,
-                field_x=well_layout["x_fields"] - 1,
-                field_y=well_layout["y_fields"] - 1,
-                well_img_ok=True,
+                event, field_x=x_fields - 1, field_y=y_fields - 1, well_img_ok=True,
             )
             or next_well_x is None
         ):
@@ -120,7 +124,7 @@ def add_next_well(center, x_wells, y_wells, well_layout):
     center.bus.register("well_event", set_next_well)
 
 
-def image_next_well_on_sample(center, gain_pattern, subscriptions, well_layout):
+def image_next_well_on_sample(center, gain_pattern, subscriptions, x_fields, y_fields):
     """Image next well in existing sample."""
 
     async def send_cam_job(center, event):
@@ -131,21 +135,21 @@ def image_next_well_on_sample(center, gain_pattern, subscriptions, well_layout):
         if (
             not match_event(event, event_type="camacq_start_event")
             and not match_event(
-                event,
-                field_x=well_layout["x_fields"] - 1,
-                field_y=well_layout["y_fields"] - 1,
-                well_img_ok=True,
+                event, field_x=x_fields - 1, field_y=y_fields - 1, well_img_ok=True,
             )
             or next_well_x is None
         ):
             return
 
         await center.actions.command.send(command=del_com())
-        # TODO: Make field coordinates for gain job configurable.
-        command = cam_com(gain_pattern, next_well_x, next_well_y, 0, 1, 0, 0)
-        await center.actions.command.send(command=command)
-        command = cam_com(gain_pattern, next_well_x, next_well_y, 1, 1, 0, 0)
-        await center.actions.command.send(command=command)
+
+        gain_x_field = ceil(x_fields / 2) - 1
+        field_y = ceil(y_fields / 2) - 1
+        for field_x in range(gain_x_field, gain_x_field + 2):
+            command = cam_com(
+                gain_pattern, next_well_x, next_well_y, field_x, field_y, 0, 0
+            )
+            await center.actions.command.send(command=command)
 
         if subscriptions.set_img_ok is not None:
             subscriptions.set_img_ok()
@@ -161,7 +165,7 @@ def image_next_well_on_sample(center, gain_pattern, subscriptions, well_layout):
     center.bus.register("well_event", send_cam_job)
 
 
-def image_next_well_on_event(center, gain_pattern, subscriptions):
+def image_next_well_on_event(center, gain_pattern, subscriptions, x_fields, y_fields):
     """Image next well."""
 
     async def send_cam_job(center, event):
@@ -170,11 +174,14 @@ def image_next_well_on_event(center, gain_pattern, subscriptions):
             return
 
         await center.actions.command.send(command=del_com())
-        # TODO: Make field coordinates for gain job configurable.
-        command = cam_com(gain_pattern, event.well.x, event.well.y, 0, 1, 0, 0)
-        await center.actions.command.send(command=command)
-        command = cam_com(gain_pattern, event.well.x, event.well.y, 1, 1, 0, 0)
-        await center.actions.command.send(command=command)
+
+        gain_x_field = ceil(x_fields / 2) - 1
+        field_y = ceil(y_fields / 2) - 1
+        for field_x in range(gain_x_field, gain_x_field + 2):
+            command = cam_com(
+                gain_pattern, event.well.x, event.well.y, field_x, field_y, 0, 0
+            )
+            await center.actions.command.send(command=command)
 
         if subscriptions.set_img_ok is not None:
             subscriptions.set_img_ok()
@@ -272,7 +279,7 @@ def set_exp_gain(center, channels):
     center.bus.register("gain_calc_event", set_gain)
 
 
-def add_exp_job(center, channels, exp_pattern, subscriptions, well_layout):
+def add_exp_job(center, channels, exp_pattern, subscriptions, x_fields, y_fields):
     """Add experiment job."""
 
     async def add_cam_job(center, event):
@@ -284,8 +291,8 @@ def add_exp_job(center, channels, exp_pattern, subscriptions, well_layout):
             return
 
         commands = []
-        for field_x in range(well_layout["x_fields"]):
-            for field_y in range(well_layout["y_fields"]):
+        for field_x in range(x_fields):
+            for field_y in range(y_fields):
                 cmd = cam_com(
                     exp_pattern, event.well_x, event.well_y, field_x, field_y, 0, 0
                 )
@@ -355,17 +362,14 @@ def rename_exp_image(center):
     return center.bus.register("image_event", rename_image)
 
 
-def stop_exp(center, x_wells, y_wells, well_layout):
+def stop_exp(center, x_wells, y_wells, x_fields, y_fields):
     """Trigger to stop experiment."""
 
     async def stop_imaging(center, event):
         """Run to stop the experiment."""
         next_well_x, _ = next_well_xy(center.sample, "00", x_wells, y_wells)
         match = match_event(
-            event,
-            field_x=well_layout["x_fields"] - 1,
-            field_y=well_layout["y_fields"] - 1,
-            well_img_ok=True,
+            event, field_x=x_fields - 1, field_y=y_fields - 1, well_img_ok=True,
         )
 
         if not match or next_well_x is not None:
