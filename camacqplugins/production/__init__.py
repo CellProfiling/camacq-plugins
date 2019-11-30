@@ -14,6 +14,7 @@ from camacq.util import dotdict, read_csv
 
 _LOGGER = logging.getLogger(__name__)
 
+PLATE_NAME = "00"
 SAMPLE_STATE_FILE = "state_file"
 
 CONFIG_SCHEMA = vol.Schema(
@@ -110,7 +111,7 @@ def start_exp(center):
 
     async def set_start_well(center, event):
         """Run on start event."""
-        await center.actions.sample.set_well(plate_name="00", well_x=0, well_y=0)
+        await center.actions.sample.set_well(plate_name=PLATE_NAME, well_x=0, well_y=0)
 
     center.bus.register("camacq_start_event", set_start_well)
 
@@ -120,8 +121,7 @@ def add_next_well(center, x_wells, y_wells, x_fields, y_fields):
 
     async def set_next_well(center, event):
         """Run on well event."""
-        plate_name = "00"
-        next_well_x, _ = next_well_xy(center.sample, plate_name, x_wells, y_wells)
+        next_well_x, _ = next_well_xy(center.sample, PLATE_NAME, x_wells, y_wells)
 
         if (
             not match_event(
@@ -133,10 +133,10 @@ def add_next_well(center, x_wells, y_wells, x_fields, y_fields):
 
         await center.actions.command.stop_imaging()
 
-        well_x, well_y = next_well_xy(center.sample, plate_name, x_wells, y_wells)
+        well_x, well_y = next_well_xy(center.sample, PLATE_NAME, x_wells, y_wells)
 
         await center.actions.sample.set_well(
-            plate_name=plate_name, well_x=well_x, well_y=well_y
+            plate_name=PLATE_NAME, well_x=well_x, well_y=well_y
         )
 
     center.bus.register("well_event", set_next_well)
@@ -147,8 +147,7 @@ def image_next_well_on_sample(center, gain_pattern, subscriptions, x_fields, y_f
 
     async def send_cam_job(center, event):
         """Run on well event."""
-        plate_name = "00"
-        next_well_x, next_well_y = next_well_xy(center.sample, plate_name)
+        next_well_x, next_well_y = next_well_xy(center.sample, PLATE_NAME)
 
         if (
             not match_event(event, event_type="camacq_start_event")
