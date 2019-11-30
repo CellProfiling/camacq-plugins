@@ -19,7 +19,12 @@ SAMPLE_STATE_FILE = "state_file"
 CONFIG_SCHEMA = vol.Schema(
     {
         vol.Required("gain_pattern_name"): vol.Coerce(str),
+        vol.Required("gain_job_id"): vol.Coerce(int),
+        vol.Required("gain_job_channels"): vol.Coerce(int),
         vol.Required("exp_pattern_name"): vol.Coerce(str),
+        vol.Required("exp_job_ids"): vol.All(
+            [vol.Coerce(int)], vol.Length(min=3, max=3)
+        ),
         vol.Required("channels"): [
             {
                 vol.Required("channel"): vol.Coerce(str),
@@ -44,7 +49,10 @@ async def setup_module(center, config):
     """Set up production plugin."""
     conf = config["production"]
     gain_pattern = conf["gain_pattern_name"]
+    gain_job_id = conf["gain_job_id"]
+    gain_job_channels = conf["gain_job_channels"]
     exp_pattern = conf["exp_pattern_name"]
+    exp_job_ids = conf["exp_job_ids"]
     channels = conf["channels"]
     well_layout = conf["well_layout"]
     x_fields = well_layout["x_fields"]
@@ -69,11 +77,21 @@ async def setup_module(center, config):
             center, gain_pattern, subscriptions, x_fields, y_fields
         )
 
-    analyze_gain(center, plot_save_path, asyncio.Lock(), x_fields, y_fields)
+    analyze_gain(
+        center,
+        plot_save_path,
+        asyncio.Lock(),
+        x_fields,
+        y_fields,
+        gain_job_id,
+        gain_job_channels,
+    )
     set_exp_gain(center, channels)
-    add_exp_job(center, channels, exp_pattern, subscriptions, x_fields, y_fields)
+    add_exp_job(
+        center, channels, exp_pattern, subscriptions, x_fields, y_fields, exp_job_ids
+    )
     subscriptions.set_img_ok = set_img_ok(center)
-    subscriptions.rename_exp_image = rename_exp_image(center)
+    subscriptions.rename_exp_image = rename_exp_image(center, exp_job_ids)
     stop_exp(center, x_wells, y_wells, x_fields, y_fields)
 
 
@@ -176,20 +194,20 @@ def image_next_well_on_event(center, gain_pattern, subscriptions, x_fields, y_fi
     center.bus.register("well_event", send_cam_job)
 
 
-def analyze_gain(center, save_path, gain_lock, x_fields, y_fields):
+def analyze_gain(
+    center, save_path, gain_lock, x_fields, y_fields, gain_job_id, gain_job_channels
+):
     """Analyze gain."""
 
     async def calc_gain(center, event):
         """Calculate correct gain."""
-        # TODO: Make job id and channel id configurable.
         field_x, field_y = get_last_gain_coords(x_fields, y_fields)
-        job_id = 3
-        channel_id = 31
+        channel_id = gain_job_channels - 1
         if not match_event(
             event,
             field_x=field_x,
             field_y=field_y,
-            job_id=job_id,
+            job_id=gain_job_id,
             channel_id=channel_id,
         ):
             return
@@ -257,7 +275,9 @@ def set_exp_gain(center, channels):
     center.bus.register("gain_calc_event", set_gain)
 
 
-def add_exp_job(center, channels, exp_pattern, subscriptions, x_fields, y_fields):
+def add_exp_job(
+    center, channels, exp_pattern, subscriptions, x_fields, y_fields, exp_job_ids
+):
     """Add experiment job."""
 
     async def add_cam_job(center, event):
@@ -282,7 +302,7 @@ def add_exp_job(center, channels, exp_pattern, subscriptions, x_fields, y_fields
         if subscriptions.set_img_ok is None:
             subscriptions.set_img_ok = set_img_ok(center)
         if subscriptions.rename_exp_image is None:
-            subscriptions.rename_exp_image = rename_exp_image(center)
+            subscriptions.rename_exp_image = rename_exp_image(center, exp_job_ids)
 
         await center.actions.command.start_imaging()
         await center.actions.command.send(command="/cmd:startcamscan")
@@ -310,22 +330,21 @@ def set_img_ok(center):
     return center.bus.register("image_event", set_sample_img_ok)
 
 
-def rename_exp_image(center):
+def rename_exp_image(center, exp_job_ids):
     """Rename an experiment image."""
-    # TODO: Make experiment pattern job_ids configurable.
 
     async def rename_image(center, event):
         """Rename an image."""
-        if event.job_id not in (3, 4, 6):
+        if event.job_id not in exp_job_ids:
             return
 
-        if event.job_id == 3:
-            channel_id = event.channel_id
-        elif event.job_id == 4 and event.channel_id == 0:
+        if event.job_id == exp_job_ids[0]:
+            channel_id = 0
+        elif event.job_id == exp_job_ids[1] and event.channel_id == 0:
             channel_id = 1
-        elif event.job_id == 4 and event.channel_id == 1:
+        elif event.job_id == exp_job_ids[1] and event.channel_id == 1:
             channel_id = 2
-        elif event.job_id == 6:
+        elif event.job_id == exp_job_ids[2]:
             channel_id = 3
 
         new_name = (
