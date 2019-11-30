@@ -364,7 +364,7 @@ def stop_exp(center, x_wells, y_wells, x_fields, y_fields):
 
     async def stop_imaging(center, event):
         """Run to stop the experiment."""
-        next_well_x, _ = next_well_xy(center.sample, "00", x_wells, y_wells)
+        next_well_x, _ = next_well_xy(center.sample, PLATE_NAME, x_wells, y_wells)
         match = match_event(
             event, field_x=x_fields - 1, field_y=y_fields - 1, well_img_ok=True,
         )
