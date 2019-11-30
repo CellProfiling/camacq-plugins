@@ -69,7 +69,7 @@ async def setup_module(center, config):
             center, gain_pattern, subscriptions, x_fields, y_fields
         )
 
-    analyze_gain(center, plot_save_path, asyncio.Lock())
+    analyze_gain(center, plot_save_path, asyncio.Lock(), x_fields, y_fields)
     set_exp_gain(center, channels)
     add_exp_job(center, channels, exp_pattern, subscriptions, x_fields, y_fields)
     subscriptions.set_img_ok = set_img_ok(center)
@@ -141,25 +141,15 @@ def image_next_well_on_sample(center, gain_pattern, subscriptions, x_fields, y_f
         ):
             return
 
-        await center.actions.command.send(command=del_com())
-
-        gain_x_field = ceil(x_fields / 2) - 1
-        field_y = ceil(y_fields / 2) - 1
-        for field_x in range(gain_x_field, gain_x_field + 2):
-            command = cam_com(
-                gain_pattern, next_well_x, next_well_y, field_x, field_y, 0, 0
-            )
-            await center.actions.command.send(command=command)
-
-        if subscriptions.set_img_ok is not None:
-            subscriptions.set_img_ok()
-            subscriptions.set_img_ok = None
-        if subscriptions.rename_exp_image is not None:
-            subscriptions.rename_exp_image()
-            subscriptions.rename_exp_image = None
-
-        await center.actions.command.start_imaging()
-        await center.actions.command.send(command="/cmd:startcamscan")
+        await send_gain_jobs(
+            center,
+            gain_pattern,
+            next_well_x,
+            next_well_y,
+            x_fields,
+            y_fields,
+            subscriptions,
+        )
 
     center.bus.register("camacq_start_event", send_cam_job)
     center.bus.register("well_event", send_cam_job)
@@ -173,38 +163,26 @@ def image_next_well_on_event(center, gain_pattern, subscriptions, x_fields, y_fi
         if event.well.images:
             return
 
-        await center.actions.command.send(command=del_com())
-
-        gain_x_field = ceil(x_fields / 2) - 1
-        field_y = ceil(y_fields / 2) - 1
-        for field_x in range(gain_x_field, gain_x_field + 2):
-            command = cam_com(
-                gain_pattern, event.well.x, event.well.y, field_x, field_y, 0, 0
-            )
-            await center.actions.command.send(command=command)
-
-        if subscriptions.set_img_ok is not None:
-            subscriptions.set_img_ok()
-            subscriptions.set_img_ok = None
-        if subscriptions.rename_exp_image is not None:
-            subscriptions.rename_exp_image()
-            subscriptions.rename_exp_image = None
-
-        await center.actions.command.start_imaging()
-        await center.actions.command.send(command="/cmd:startcamscan")
+        await send_gain_jobs(
+            center,
+            gain_pattern,
+            event.well.x,
+            event.well.y,
+            x_fields,
+            y_fields,
+            subscriptions,
+        )
 
     center.bus.register("well_event", send_cam_job)
 
 
-def analyze_gain(center, save_path, gain_lock):
+def analyze_gain(center, save_path, gain_lock, x_fields, y_fields):
     """Analyze gain."""
 
     async def calc_gain(center, event):
         """Calculate correct gain."""
-        # TODO: Make last gain image field coordinates, job id
-        # and save_path configurable.
-        field_x = 1
-        field_y = 1
+        # TODO: Make job id and channel id configurable.
+        field_x, field_y = get_last_gain_coords(x_fields, y_fields)
         job_id = 3
         channel_id = 31
         if not match_event(
@@ -378,3 +356,37 @@ def stop_exp(center, x_wells, y_wells, x_fields, y_fields):
         await center.actions.command.stop_imaging()
 
     center.bus.register("well_event", stop_imaging)
+
+
+def get_last_gain_coords(x_fields, y_fields):
+    """Return a tuple with last gain coordinates x and y.
+
+    The gain coordinates will be the two most centered fields.
+    """
+    last_x_field = ceil(x_fields / 2)
+    last_y_field = ceil(y_fields / 2) - 1
+    return last_x_field, last_y_field
+
+
+async def send_gain_jobs(
+    center, gain_job, well_x, well_y, x_fields, y_fields, subscriptions
+):
+    """Send gain cam jobs for the center fields of a well."""
+    field_x, field_y = get_last_gain_coords(x_fields, y_fields)
+    field_x = field_x - 1  # set the start x field coord
+
+    await center.actions.command.send(command=del_com())
+
+    for field_x in range(field_x, field_x + 2):
+        command = cam_com(gain_job, well_x, well_y, field_x, field_y, 0, 0)
+        await center.actions.command.send(command=command)
+
+    if subscriptions.set_img_ok is not None:
+        subscriptions.set_img_ok()
+        subscriptions.set_img_ok = None
+    if subscriptions.rename_exp_image is not None:
+        subscriptions.rename_exp_image()
+        subscriptions.rename_exp_image = None
+
+    await center.actions.command.start_imaging()
+    await center.actions.command.send(command="/cmd:startcamscan")
