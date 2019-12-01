@@ -249,12 +249,16 @@ class WorkFlow:
 
         async def set_gain(center, event):
             """Set pmt gain."""
-            for channel in self.channels:
-                if event.channel_name != channel["channel"]:
-                    continue
-                exp = channel["job_name"]
-                num = channel["detector_num"]
-                gain = min(event.gain or channel["default_gain"], channel["max_gain"])
+            channel = next(
+                (
+                    channel
+                    for channel in self.channels
+                    if event.channel_name == channel["channel"]
+                )
+            )
+            exp = channel["job_name"]
+            num = channel["detector_num"]
+            gain = min(event.gain or channel["default_gain"], channel["max_gain"])
 
             command = gain_com(exp=exp, num=num, value=gain)
 
