@@ -3,12 +3,14 @@ import tempfile
 from pathlib import Path
 from unittest.mock import call
 
-from asynctest import patch
 import pytest
+import voluptuous as vol
+from asynctest import CoroutineMock
 from ruamel.yaml import YAML
 
 from camacq import plugins
 from camacq.plugins.api import ImageEvent
+from camacq.plugins.gain import GainCalcEvent
 
 # All test coroutines will be treated as marked.
 pytestmark = pytest.mark.asyncio  # pylint: disable=invalid-name
@@ -47,40 +49,7 @@ production:
   well_layout:
     x_fields: 2
     y_fields: 3
-gain:
-  channels:
-  - channel: green
-    init_gain: [450, 495, 540, 585, 630, 675, 720, 765, 810, 855, 900]
-  - channel: blue
-    # 63x
-    #init_gain: [750, 730, 765, 800, 835, 870, 905]
-    # 10x
-    init_gain: [700, 735, 770, 805, 840, 875, 910]
-  - channel: yellow
-    # 63x
-    #init_gain: [550, 585, 620, 655, 690, 725, 760]
-    # 10x
-    init_gain: [700, 735, 770, 805, 840, 875, 910]
-  - channel: red
-    # 63x
-    #init_gain: [525, 560, 595, 630, 665, 700, 735]
-    # 10x
-    init_gain: [600, 635, 670, 705, 740, 775, 810]
 """
-
-
-@pytest.fixture(name="calc_gain")
-def calc_gain_fixture():
-    """Mock calc_gain plugin function."""
-    with patch("camacq.plugins.gain.calc_gain") as mock_gain:
-        yield mock_gain
-
-
-@pytest.fixture(name="make_proj")
-def make_proj_fixture():
-    """Mock make_proj image function."""
-    with patch("camacq.plugins.gain.make_proj") as mock_proj:
-        yield mock_proj
 
 
 class WorkflowImageEvent(ImageEvent):
@@ -94,7 +63,7 @@ class WorkflowImageEvent(ImageEvent):
         return self.data.get("job_id")
 
 
-async def test_duplicate_image_events(center, calc_gain, make_proj):
+async def test_duplicate_image_events(center):
     """Test duplicate image events."""
     config = YAML(typ="safe").load(CONFIG)
     await plugins.setup_module(center, config)
@@ -107,8 +76,36 @@ async def test_duplicate_image_events(center, calc_gain, make_proj):
     channel_id = 31
     save_path = Path(tempfile.gettempdir()) / plate_name
     save_path = save_path / f"{well_x}--{well_y}"
-    test_projs = ["test"]
-    make_proj.return_value = test_projs
+    calc_gain = CoroutineMock()
+
+    async def fire_gain_event(**kwargs):
+        """Fire gain event."""
+        well_x = kwargs.get("well_x")
+        well_y = kwargs.get("well_y")
+        plate_name = kwargs.get("plate_name")
+        gains = {
+            "green": 800,
+            "blue": 700,
+            "yellow": 600,
+            "red": 500,
+        }
+        for channel_name, gain in gains.items():
+            event = GainCalcEvent(
+                {
+                    "plate_name": plate_name,
+                    "well_x": well_x,
+                    "well_y": well_y,
+                    "channel_name": channel_name,
+                    "gain": gain,
+                }
+            )
+            await center.bus.notify(event)
+
+    calc_gain.side_effect = fire_gain_event
+
+    center.actions.register(
+        "gain", "calc_gain", calc_gain, vol.Schema({}, extra=vol.ALLOW_EXTRA)
+    )
 
     event = WorkflowImageEvent(
         {
@@ -122,10 +119,16 @@ async def test_duplicate_image_events(center, calc_gain, make_proj):
             "channel_id": channel_id,
         }
     )
-    await center.bus.notify(event)
+    center.create_task(center.bus.notify(event))
+    center.create_task(center.bus.notify(event))
     await center.wait_for()
 
     assert calc_gain.call_count == 1
     assert calc_gain.call_args == call(
-        center, config, plate_name, well_x, well_y, test_projs, True, str(save_path),
+        action_id="calc_gain",
+        plate_name=plate_name,
+        well_x=well_x,
+        well_y=well_y,
+        make_plots=True,
+        save_path=save_path,
     )
