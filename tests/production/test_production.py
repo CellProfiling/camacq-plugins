@@ -70,25 +70,22 @@ async def test_duplicate_image_events(center):
     plate_name = "00"
     well_x = 0
     well_y = 0
-    field_x = 1
-    field_y = 1
-    job_id = 3
-    channel_id = 31
     save_path = Path(tempfile.gettempdir()) / plate_name
     save_path = save_path / f"{well_x}--{well_y}"
     calc_gain = CoroutineMock()
+    gains = {
+        "green": 800,
+        "blue": 700,
+        "yellow": 600,
+        "red": 500,
+    }
 
     async def fire_gain_event(**kwargs):
         """Fire gain event."""
         well_x = kwargs.get("well_x")
         well_y = kwargs.get("well_y")
         plate_name = kwargs.get("plate_name")
-        gains = {
-            "green": 800,
-            "blue": 700,
-            "yellow": 600,
-            "red": 500,
-        }
+
         for channel_name, gain in gains.items():
             event = GainCalcEvent(
                 {
@@ -113,10 +110,10 @@ async def test_duplicate_image_events(center):
             "plate_name": plate_name,
             "well_x": well_x,
             "well_y": well_y,
-            "field_x": field_x,
-            "field_y": field_y,
-            "job_id": job_id,
-            "channel_id": channel_id,
+            "field_x": 1,
+            "field_y": 1,
+            "job_id": 3,
+            "channel_id": 31,
         }
     )
     center.create_task(center.bus.notify(event))
@@ -132,3 +129,6 @@ async def test_duplicate_image_events(center):
         make_plots=True,
         save_path=save_path,
     )
+    for channel_name, gain in gains.items():
+        channel = center.sample.get_channel(plate_name, well_x, well_y, channel_name)
+        assert channel.gain == gain
