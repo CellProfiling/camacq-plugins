@@ -314,7 +314,7 @@ class WorkFlow:
 
         async def set_sample_img_ok(center, event):
             """Set sample field img ok."""
-            if not match_event(event, job_id=6):
+            if not match_event(event, job_id=self.exp_job_ids[-1]):
                 return
 
             await center.actions.sample.set_field(
