@@ -50,8 +50,9 @@ production:
 """
 
 SAMPLE_STATE = """
-plate_name,well_x,well_y,channel_name,gain
-00,0,0
+plate_name,well_x,well_y,channel_name,gain,field_x,field_y
+00,0,0,,,0,0
+00,0,0,,,0,1
 00,0,1
 00,1,0
 00,1,1
@@ -154,3 +155,5 @@ async def test_load_sample(center, tmp_path):
 
     plate = center.sample.get_plate(plate_name)
     assert len(plate.wells) == 4
+    well = center.sample.get_well(plate_name, 0, 0)
+    assert len(well.fields) == 2

@@ -102,7 +102,8 @@ class WorkFlow:
         for data in state_data:
             if data["plate_name"] not in self._center.sample.plates:
                 await self._center.actions.sample.set_plate(silent=True, **data)
-            if (data["well_x"], data["well_y"]) not in self._center.sample.plates[
+            well_coord = int(data["well_x"]), int(data["well_y"])
+            if well_coord not in self._center.sample.plates[
                 data["plate_name"]
             ].wells:
                 await self._center.actions.sample.set_well(silent=True, **data)
