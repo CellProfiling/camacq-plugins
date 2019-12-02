@@ -100,8 +100,12 @@ class WorkFlow:
         """Load sample state from file."""
         state_data = await self._center.add_executor_job(read_csv, state_file)
         for data in state_data:
-            await self._center.actions.sample.set_plate(silent=True, **data)
-            await self._center.actions.sample.set_well(silent=True, **data)
+            if data["plate_name"] not in self._center.sample.plates:
+                await self._center.actions.sample.set_plate(silent=True, **data)
+            if (data["well_x"], data["well_y"]) not in self._center.sample.plates[
+                data["plate_name"]
+            ].wells:
+                await self._center.actions.sample.set_well(silent=True, **data)
             await self._center.actions.sample.set_channel(silent=True, **data)
             await self._center.actions.sample.set_field(silent=True, **data)
 

@@ -51,6 +51,14 @@ production:
     y_fields: 3
 """
 
+SAMPLE_STATE = """
+plate_name,well_x,well_y,channel_name,gain
+00,0,0
+00,0,1
+00,1,0
+00,1,1
+""".strip()
+
 
 class WorkflowImageEvent(ImageEvent):
     """Represent a test image event."""
@@ -132,3 +140,17 @@ async def test_duplicate_image_events(center):
     for channel_name, gain in gains.items():
         channel = center.sample.get_channel(plate_name, well_x, well_y, channel_name)
         assert channel.gain == gain
+
+
+async def test_load_sample(center, tmp_path):
+    """Test loading sample state from file."""
+    state_file = tmp_path / "state_file.csv"
+    state_file.write_text(SAMPLE_STATE)
+    config = YAML(typ="safe").load(CONFIG)
+    config["production"]["state_file"] = str(state_file)
+    plate_name = "00"
+    await plugins.setup_module(center, config)
+    await center.wait_for()
+
+    plate = center.sample.get_plate(plate_name)
+    assert len(plate.wells) == 4
