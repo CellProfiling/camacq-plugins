@@ -1,6 +1,4 @@
 """Test the production plugin."""
-import tempfile
-from pathlib import Path
 from unittest.mock import call
 
 import pytest
@@ -71,14 +69,16 @@ class WorkflowImageEvent(ImageEvent):
         return self.data.get("job_id")
 
 
-async def test_duplicate_image_events(center):
+async def test_duplicate_image_events(center, tmp_path):
     """Test duplicate image events."""
     config = YAML(typ="safe").load(CONFIG)
-    await plugins.setup_module(center, config)
     plate_name = "00"
     well_x = 0
     well_y = 0
-    save_path = Path(tempfile.gettempdir()) / plate_name
+    save_path = tmp_path / plate_name
+    await center.add_executor_job(save_path.mkdir)
+    config["production"]["plot_save_path"] = save_path
+    await plugins.setup_module(center, config)
     save_path = save_path / f"{well_x}--{well_y}"
     calc_gain = CoroutineMock()
     gains = {
