@@ -71,8 +71,7 @@ class WorkFlow:
         self.x_fields = well_layout["x_fields"]
         self.y_fields = well_layout["y_fields"]
         self.plot_save_path = conf.get("plot_save_path")
-        self._remove_set_img_ok = None
-        self._remove_rename_image = None
+        self._remove_handle_exp_image = None
 
     async def setup(self, state_file):
         """Set up the flow."""
@@ -91,8 +90,7 @@ class WorkFlow:
         self.analyze_gain()
         self.set_exp_gain()
         self.add_exp_job()
-        self._remove_set_img_ok = self.set_img_ok()
-        self._remove_rename_image = self.rename_exp_image()
+        self._remove_handle_exp_image = self.handle_exp_image()
         self.stop_exp(x_wells, y_wells)
 
     async def load_sample(self, state_file):
@@ -294,63 +292,23 @@ class WorkFlow:
             await center.actions.command.send(command=del_com())
             await center.actions.command.send_many(commands=commands)
 
-            if self._remove_set_img_ok is None:
-                self._remove_set_img_ok = self.set_img_ok()
-            if self._remove_rename_image is None:
-                self._remove_rename_image = self.rename_exp_image()
+            if self._remove_handle_exp_image is None:
+                self._remove_handle_exp_image = self.handle_exp_image()
 
             await center.actions.command.start_imaging()
             await center.actions.command.send(command="/cmd:startcamscan")
 
         return self._center.bus.register("channel_event", add_cam_job)
 
-    def set_img_ok(self):
-        """Set field as imaged ok."""
+    def handle_exp_image(self):
+        """Handle experiment image."""
 
-        async def set_sample_img_ok(center, event):
-            """Set sample field img ok."""
-            if not match_event(event, job_id=self.exp_job_ids[-1]):
-                return
+        async def on_exp_image(center, event):
+            """Run on experiment image event."""
+            await self.rename_image(center, event)
+            await self.set_sample_img_ok(center, event)
 
-            await center.actions.sample.set_field(
-                plate_name=event.plate_name,
-                well_x=event.well_x,
-                well_y=event.well_y,
-                field_x=event.field_x,
-                field_y=event.field_y,
-                img_ok=True,
-            )
-
-        return self._center.bus.register("image_event", set_sample_img_ok)
-
-    def rename_exp_image(self):
-        """Rename an experiment image."""
-
-        async def rename_image(center, event):
-            """Rename an image."""
-            if event.job_id not in self.exp_job_ids or event.channel_id not in (0, 1):
-                return
-
-            if event.job_id == self.exp_job_ids[0]:
-                channel_id = 0
-            elif event.job_id == self.exp_job_ids[1] and event.channel_id == 0:
-                channel_id = 1
-            elif event.job_id == self.exp_job_ids[1] and event.channel_id == 1:
-                channel_id = 2
-            elif event.job_id == self.exp_job_ids[2]:
-                channel_id = 3
-
-            new_name = (
-                f"U{event.well_x:02}--V{event.well_y:02}--E{event.job_id:02}--"
-                f"X{event.field_x:02}--Y{event.field_y:02}--"
-                f"Z{event.z_slice:02}--C{channel_id:02}.ome.tif"
-            )
-
-            await center.actions.rename_image.rename_image(
-                old_path=event.path, new_name=new_name
-            )
-
-        return self._center.bus.register("image_event", rename_image)
+        return self._center.bus.register("image_event", on_exp_image)
 
     def stop_exp(self, x_wells, y_wells):
         """Trigger to stop experiment."""
@@ -385,15 +343,50 @@ class WorkFlow:
             command = cam_com(self.gain_pattern, well_x, well_y, field_x, field_y, 0, 0)
             await self._center.actions.command.send(command=command)
 
-        if self._remove_set_img_ok is not None:
-            self._remove_set_img_ok()
-            self._remove_set_img_ok = None
-        if self._remove_rename_image is not None:
-            self._remove_rename_image()
-            self._remove_rename_image = None
+        if self._remove_handle_exp_image is not None:
+            self._remove_handle_exp_image()
+            self._remove_handle_exp_image = None
 
         await self._center.actions.command.start_imaging()
         await self._center.actions.command.send(command="/cmd:startcamscan")
+
+    async def rename_image(self, center, event):
+        """Rename an image."""
+        if event.job_id not in self.exp_job_ids or event.channel_id not in (0, 1):
+            return
+
+        if event.job_id == self.exp_job_ids[0]:
+            channel_id = 0
+        elif event.job_id == self.exp_job_ids[1] and event.channel_id == 0:
+            channel_id = 1
+        elif event.job_id == self.exp_job_ids[1] and event.channel_id == 1:
+            channel_id = 2
+        elif event.job_id == self.exp_job_ids[2]:
+            channel_id = 3
+
+        new_name = (
+            f"U{event.well_x:02}--V{event.well_y:02}--E{event.job_id:02}--"
+            f"X{event.field_x:02}--Y{event.field_y:02}--"
+            f"Z{event.z_slice:02}--C{channel_id:02}.ome.tif"
+        )
+
+        await center.actions.rename_image.rename_image(
+            old_path=event.path, new_name=new_name
+        )
+
+    async def set_sample_img_ok(self, center, event):
+        """Set sample field img ok."""
+        if not match_event(event, job_id=self.exp_job_ids[-1]):
+            return
+
+        await center.actions.sample.set_field(
+            plate_name=event.plate_name,
+            well_x=event.well_x,
+            well_y=event.well_y,
+            field_x=event.field_x,
+            field_y=event.field_y,
+            img_ok=True,
+        )
 
 
 def get_last_gain_coords(x_fields, y_fields):
