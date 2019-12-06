@@ -166,7 +166,8 @@ class WorkFlow:
             ):
                 return
 
-            await center.actions.command.stop_imaging()
+            if center.sample.images:
+                await center.actions.command.stop_imaging()
             await self.send_gain_jobs(
                 next_well_x, next_well_y,
             )
