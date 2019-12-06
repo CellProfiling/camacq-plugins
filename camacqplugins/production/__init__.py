@@ -103,9 +103,7 @@ class WorkFlow:
             if data["plate_name"] not in self._center.sample.plates:
                 await self._center.actions.sample.set_plate(silent=True, **data)
             well_coord = int(data["well_x"]), int(data["well_y"])
-            if well_coord not in self._center.sample.plates[
-                data["plate_name"]
-            ].wells:
+            if well_coord not in self._center.sample.plates[data["plate_name"]].wells:
                 await self._center.actions.sample.set_well(silent=True, **data)
             await self._center.actions.sample.set_channel(silent=True, **data)
             await self._center.actions.sample.set_field(silent=True, **data)
@@ -168,6 +166,7 @@ class WorkFlow:
             ):
                 return
 
+            await center.actions.command.stop_imaging()
             await self.send_gain_jobs(
                 next_well_x, next_well_y,
             )
