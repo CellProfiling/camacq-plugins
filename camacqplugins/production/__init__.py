@@ -1,5 +1,4 @@
 """Provide a plugin for production standard flow."""
-import asyncio
 import logging
 import tempfile
 from math import ceil
@@ -89,7 +88,7 @@ class WorkFlow:
             self.add_next_well(x_wells, y_wells)
             self.image_next_well_on_event()
 
-        self.analyze_gain(asyncio.Lock())
+        self.analyze_gain()
         self.set_exp_gain()
         self.add_exp_job()
         self._remove_set_img_ok = self.set_img_ok()
@@ -198,7 +197,7 @@ class WorkFlow:
 
         return self._center.bus.register("well_event", send_cam_job)
 
-    def analyze_gain(self, gain_lock):
+    def analyze_gain(self):
         """Analyze gain."""
 
         async def calc_gain(center, event):
@@ -214,38 +213,25 @@ class WorkFlow:
             ):
                 return
 
-            # Guard against duplicate image events.
-            async with gain_lock:
-                well = center.sample.get_well(
-                    plate_name=event.plate_name,
-                    well_x=event.well_x,
-                    well_y=event.well_y,
-                )
-                gain_set = any(
-                    channel.gain is not None for channel in well.channels.values()
-                )
-                if gain_set:
-                    return
+            await center.actions.command.stop_imaging()
 
-                await center.actions.command.stop_imaging()
+            if self.plot_save_path is None:
+                save_path = Path(tempfile.gettempdir()) / event.plate_name
+            else:
+                save_path = Path(self.plot_save_path)
+            if not save_path.exists():
+                await center.add_executor_job(save_path.mkdir)
 
-                if self.plot_save_path is None:
-                    save_path = Path(tempfile.gettempdir()) / event.plate_name
-                else:
-                    save_path = Path(self.plot_save_path)
-                if not save_path.exists():
-                    await center.add_executor_job(save_path.mkdir)
+            # This should be a path to a base file name, not to a dir or file.
+            save_path = save_path / f"{event.well_x}--{event.well_y}"
 
-                # This should be a path to a base file name, not to a dir or file.
-                save_path = save_path / f"{event.well_x}--{event.well_y}"
-
-                await center.actions.gain.calc_gain(
-                    plate_name=event.plate_name,
-                    well_x=event.well_x,
-                    well_y=event.well_y,
-                    make_plots=True,
-                    save_path=save_path,
-                )
+            await center.actions.gain.calc_gain(
+                plate_name=event.plate_name,
+                well_x=event.well_x,
+                well_y=event.well_y,
+                make_plots=True,
+                save_path=save_path,
+            )
 
         return self._center.bus.register("image_event", calc_gain)
 
