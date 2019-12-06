@@ -34,26 +34,26 @@ production:
     y_fields: 3
   #plot_save_path: "/path/to/gains/dir/00/"
 
-  gain:
-    channels:
-    - channel: green
-      init_gain: [450, 495, 540, 585, 630, 675, 720, 765, 810, 855, 900]
-    - channel: blue
-      # 63x
-      #init_gain: [750, 730, 765, 800, 835, 870, 905]
-      # 10x
-      init_gain: [700, 735, 770, 805, 840, 875, 910]
-    - channel: yellow
-      # 63x
-      #init_gain: [550, 585, 620, 655, 690, 725, 760]
-      # 10x
-      init_gain: [700, 735, 770, 805, 840, 875, 910]
-    - channel: red
-      # 63x
-      #init_gain: [525, 560, 595, 630, 665, 700, 735]
-      # 10x
-      init_gain: [600, 635, 670, 705, 740, 775, 810]
-    #save_dir: "/path/to/gains/dir"
+gain:
+  channels:
+  - channel: green
+    init_gain: [450, 495, 540, 585, 630, 675, 720, 765, 810, 855, 900]
+  - channel: blue
+    # 63x
+    #init_gain: [750, 730, 765, 800, 835, 870, 905]
+    # 10x
+    init_gain: [700, 735, 770, 805, 840, 875, 910]
+  - channel: yellow
+    # 63x
+    #init_gain: [550, 585, 620, 655, 690, 725, 760]
+    # 10x
+    init_gain: [700, 735, 770, 805, 840, 875, 910]
+  - channel: red
+    # 63x
+    #init_gain: [525, 560, 595, 630, 665, 700, 735]
+    # 10x
+    init_gain: [600, 635, 670, 705, 740, 775, 810]
+  #save_dir: "/path/to/gains/dir"
 
 rename_image:
 
