@@ -384,6 +384,8 @@ class WorkFlow:
 
             await center.actions.command.stop_imaging()
 
+            _LOGGER.info("Congratulations, experiment is finished!")
+
         return self._center.bus.register("well_event", stop_imaging)
 
     async def send_gain_jobs(self, well_x, well_y):
