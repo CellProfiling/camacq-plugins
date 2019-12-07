@@ -121,13 +121,11 @@ class WorkFlow:
 
     async def load_sample(self, state_data):
         """Load sample state."""
-        self.wells_left = {
-            (data[SAMPLE_WELL_X], data[SAMPLE_WELL_Y]) for data in state_data
-        }
         for data in state_data:
             if data[SAMPLE_PLATE_NAME] not in self._center.sample.plates:
                 await self._center.actions.sample.set_plate(silent=True, **data)
             well_coord = int(data[SAMPLE_WELL_X]), int(data[SAMPLE_WELL_Y])
+            self.wells_left.add(well_coord)
             if (
                 well_coord
                 not in self._center.sample.plates[data[SAMPLE_PLATE_NAME]].wells
