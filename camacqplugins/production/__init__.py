@@ -164,7 +164,7 @@ class WorkFlow:
             await self.send_gain_jobs(
                 next_well_x, next_well_y,
             )
-            self.wells_left.pop((next_well_x, next_well_y))
+            self.wells_left.remove((next_well_x, next_well_y))
 
         removes = []
         removes.append(self._center.bus.register(CAMACQ_START_EVENT, send_cam_job))
