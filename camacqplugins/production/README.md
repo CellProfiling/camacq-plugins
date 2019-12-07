@@ -3,7 +3,7 @@
 ## Usage
 
 Add configuration for the `production`, `gain`, `leica` and `rename` plugin, in the `camacq` configuration file.
-See the [config_templates](config_templates/) directory for example configuration.
+See the [config_templates](../config_templates/) directory for example configuration.
 
 ```yaml
 production:

@@ -2,7 +2,7 @@
 
 Plugins for camacq:
 
-- [production](camacqplugins/production)
+- [production](camacqplugins/production/)
 
 ## Installation
 
