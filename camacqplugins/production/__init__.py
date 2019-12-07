@@ -6,6 +6,7 @@ from pathlib import Path
 
 import voluptuous as vol
 
+from camacq.const import CAMACQ_START_EVENT
 from camacq.event import match_event
 from camacq.plugins.leica.command import cam_com, del_com, gain_com
 from camacq.plugins.sample.helper import next_well_xy
@@ -77,31 +78,26 @@ class WorkFlow:
     async def setup(self, state_file):
         """Set up the flow."""
         if state_file is not None:
-            x_wells = None
-            y_wells = None
-            await self.load_sample(state_file)
-            self.image_next_well_on_sample()
+            state_data = await self._center.add_executor_job(read_csv, state_file)
         else:
             x_wells = 12
             y_wells = 8
-            self.wells_left = {
-                (well_x, well_y)
+            state_data = [
+                {"plate_name": PLATE_NAME, "well_x": well_x, "well_y": well_y}
                 for well_x in range(x_wells)
                 for well_y in range(y_wells)
-            }
-            self.start_exp()
-            self.add_next_well(x_wells, y_wells)
-            self.image_next_well_on_event()
+            ]
 
+        await self.load_sample(state_data)
+        self.image_next_well_on_sample()
         self.analyze_gain()
         self.set_exp_gain()
         self.add_exp_job()
         self._remove_handle_exp_image = self.handle_exp_image()
         self.stop_exp()
 
-    async def load_sample(self, state_file):
-        """Load sample state from file."""
-        state_data = await self._center.add_executor_job(read_csv, state_file)
+    async def load_sample(self, state_data):
+        """Load sample state."""
         self.wells_left = {(data["well_x"], data["well_y"]) for data in state_data}
         for data in state_data:
             if data["plate_name"] not in self._center.sample.plates:
@@ -112,46 +108,6 @@ class WorkFlow:
             await self._center.actions.sample.set_channel(silent=True, **data)
             await self._center.actions.sample.set_field(silent=True, **data)
 
-    def start_exp(self):
-        """Trigger on start experiment."""
-
-        async def set_start_well(center, event):
-            """Run on start event."""
-            await center.actions.sample.set_well(
-                plate_name=PLATE_NAME, well_x=0, well_y=0
-            )
-
-        return self._center.bus.register("camacq_start_event", set_start_well)
-
-    def add_next_well(self, x_wells, y_wells):
-        """Add next well."""
-
-        async def set_next_well(center, event):
-            """Run on well event."""
-            next_well_x, next_well_y = next_well_xy(
-                center.sample, PLATE_NAME, x_wells, y_wells
-            )
-
-            if (
-                not match_event(
-                    event,
-                    field_x=self.x_fields - 1,
-                    field_y=self.y_fields - 1,
-                    well_img_ok=True,
-                )
-                or next_well_x is None
-                or (next_well_x, next_well_y) not in self.wells_left
-            ):
-                return
-
-            await center.actions.command.stop_imaging()
-            await center.actions.sample.set_well(
-                plate_name=PLATE_NAME, well_x=next_well_x, well_y=next_well_y
-            )
-            self.wells_left.pop((next_well_x, next_well_y))
-
-        return self._center.bus.register("well_event", set_next_well)
-
     def image_next_well_on_sample(self):
         """Image next well in existing sample."""
 
@@ -160,7 +116,7 @@ class WorkFlow:
             next_well_x, next_well_y = next_well_xy(center.sample, PLATE_NAME)
 
             if (
-                not match_event(event, event_type="camacq_start_event")
+                not match_event(event, event_type=CAMACQ_START_EVENT)
                 and not match_event(
                     event,
                     field_x=self.x_fields - 1,
@@ -180,7 +136,7 @@ class WorkFlow:
             self.wells_left.pop((next_well_x, next_well_y))
 
         removes = []
-        removes.append(self._center.bus.register("camacq_start_event", send_cam_job))
+        removes.append(self._center.bus.register(CAMACQ_START_EVENT, send_cam_job))
         removes.append(self._center.bus.register("well_event", send_cam_job))
 
         def remove_callback():
@@ -190,20 +146,6 @@ class WorkFlow:
             removes.clear()
 
         return remove_callback
-
-    def image_next_well_on_event(self):
-        """Image next well."""
-
-        async def send_cam_job(center, event):
-            """Run on well event."""
-            if event.well.images:
-                return
-
-            await self.send_gain_jobs(
-                event.well.x, event.well.y,
-            )
-
-        return self._center.bus.register("well_event", send_cam_job)
 
     def analyze_gain(self):
         """Analyze gain."""
