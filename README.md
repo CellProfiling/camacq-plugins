@@ -11,7 +11,7 @@ file.
 
 ```yaml
 production:
-  state_file: '/sample_state.csv'
+  sample_state_file: '/sample_state.csv'
 ```
 
 Each row in the csv file should represent a state of a sample container,

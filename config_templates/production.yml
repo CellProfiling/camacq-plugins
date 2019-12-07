@@ -1,5 +1,5 @@
 production:
-  #state_file: "/path/to/sample_state.csv"
+  #sample_state_file: "/path/to/sample_state.csv"
   gain_pattern_name: p10xgain
   gain_job_id: 3
   gain_job_channels: 32

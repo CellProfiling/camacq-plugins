@@ -148,7 +148,7 @@ async def test_load_sample(center, tmp_path):
     state_file = tmp_path / "state_file.csv"
     state_file.write_text(SAMPLE_STATE)
     config = YAML(typ="safe").load(CONFIG)
-    config["production"]["state_file"] = str(state_file)
+    config["production"]["sample_state_file"] = str(state_file)
     plate_name = "00"
     await plugins.setup_module(center, config)
     await center.wait_for()

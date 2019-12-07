@@ -6,7 +6,7 @@ from pathlib import Path
 
 import voluptuous as vol
 
-from camacq.const import CAMACQ_START_EVENT
+from camacq.const import CAMACQ_START_EVENT, CHANNEL_EVENT, IMAGE_EVENT, WELL_EVENT
 from camacq.event import match_event
 from camacq.plugins.leica.command import cam_com, del_com, gain_com
 from camacq.plugins.sample.helper import next_well_xy
@@ -14,34 +14,53 @@ from camacq.util import read_csv
 
 _LOGGER = logging.getLogger(__name__)
 
+CONF_GAIN_PATTERN_NAME = "gain_pattern_name"
+CONF_GAIN_JOB_ID = "gain_job_id"
+CONF_GAIN_JOB_CHANNELS = "gain_job_channels"
+CONF_EXP_PATTERN_NAME = "exp_pattern_name"
+CONF_EXP_JOB_IDS = "exp_job_ids"
+CONF_CHANNELS = "channels"
+CONF_CHANNEL = "channel"
+CONF_JOB_NAME = "job_name"
+CONF_DETECTOR_NUM = "detector_num"
+CONF_DEFAULT_GAIN = "default_gain"
+CONF_MAX_GAIN = "max_gain"
+CONF_WELL_LAYOUT = "well_layout"
+CONF_X_FIELDS = "x_fields"
+CONF_Y_FIELDS = "y_fields"
+CONF_PLOT_SAVE_PATH = "plot_save_path"
+CONF_SAMPLE_STATE_FILE = "sample_state_file"
+
 PLATE_NAME = "00"
-SAMPLE_STATE_FILE = "state_file"
+SAMPLE_PLATE_NAME = "plate_name"
+SAMPLE_WELL_X = "well_x"
+SAMPLE_WELL_Y = "well_y"
 
 CONFIG_SCHEMA = vol.Schema(
     {
-        vol.Required("gain_pattern_name"): vol.Coerce(str),
-        vol.Required("gain_job_id"): vol.Coerce(int),
-        vol.Required("gain_job_channels"): vol.Coerce(int),
-        vol.Required("exp_pattern_name"): vol.Coerce(str),
-        vol.Required("exp_job_ids"): vol.All(
+        vol.Required(CONF_GAIN_PATTERN_NAME): vol.Coerce(str),
+        vol.Required(CONF_GAIN_JOB_ID): vol.Coerce(int),
+        vol.Required(CONF_GAIN_JOB_CHANNELS): vol.Coerce(int),
+        vol.Required(CONF_EXP_PATTERN_NAME): vol.Coerce(str),
+        vol.Required(CONF_EXP_JOB_IDS): vol.All(
             [vol.Coerce(int)], vol.Length(min=3, max=3)
         ),
-        vol.Required("channels"): [
+        vol.Required(CONF_CHANNELS): [
             {
-                vol.Required("channel"): vol.Coerce(str),
-                vol.Required("job_name"): vol.Coerce(str),
-                vol.Required("detector_num"): vol.Coerce(int),
-                vol.Required("default_gain"): vol.Coerce(int),
-                vol.Required("max_gain"): vol.Coerce(int),
+                vol.Required(CONF_CHANNEL): vol.Coerce(str),
+                vol.Required(CONF_JOB_NAME): vol.Coerce(str),
+                vol.Required(CONF_DETECTOR_NUM): vol.Coerce(int),
+                vol.Required(CONF_DEFAULT_GAIN): vol.Coerce(int),
+                vol.Required(CONF_MAX_GAIN): vol.Coerce(int),
             }
         ],
-        vol.Required("well_layout"): {
-            vol.Required("x_fields"): vol.Coerce(int),
-            vol.Required("y_fields"): vol.Coerce(int),
+        vol.Required(CONF_WELL_LAYOUT): {
+            vol.Required(CONF_X_FIELDS): vol.Coerce(int),
+            vol.Required(CONF_Y_FIELDS): vol.Coerce(int),
         },
         # pylint: disable=no-value-for-parameter
-        "plot_save_path": vol.IsDir(),
-        SAMPLE_STATE_FILE: vol.IsFile(),
+        CONF_PLOT_SAVE_PATH: vol.IsDir(),
+        CONF_SAMPLE_STATE_FILE: vol.IsFile(),
     },
 )
 
@@ -50,7 +69,7 @@ async def setup_module(center, config):
     """Set up production plugin."""
     conf = config["production"]
     flow = WorkFlow(center, conf)
-    state_file = conf.get(SAMPLE_STATE_FILE)
+    state_file = conf.get(CONF_SAMPLE_STATE_FILE)
     await flow.setup(state_file)
 
 
@@ -62,16 +81,16 @@ class WorkFlow:
     def __init__(self, center, conf):
         """Set up instance."""
         self._center = center
-        self.gain_pattern = conf["gain_pattern_name"]
-        self.gain_job_id = conf["gain_job_id"]
-        self.gain_job_channels = conf["gain_job_channels"]
-        self.exp_pattern = conf["exp_pattern_name"]
-        self.exp_job_ids = conf["exp_job_ids"]
-        self.channels = conf["channels"]
-        well_layout = conf["well_layout"]
-        self.x_fields = well_layout["x_fields"]
-        self.y_fields = well_layout["y_fields"]
-        self.plot_save_path = conf.get("plot_save_path")
+        self.gain_pattern = conf[CONF_GAIN_PATTERN_NAME]
+        self.gain_job_id = conf[CONF_GAIN_JOB_ID]
+        self.gain_job_channels = conf[CONF_GAIN_JOB_CHANNELS]
+        self.exp_pattern = conf[CONF_EXP_PATTERN_NAME]
+        self.exp_job_ids = conf[CONF_EXP_JOB_IDS]
+        self.channels = conf[CONF_CHANNELS]
+        well_layout = conf[CONF_WELL_LAYOUT]
+        self.x_fields = well_layout[CONF_X_FIELDS]
+        self.y_fields = well_layout[CONF_Y_FIELDS]
+        self.plot_save_path = conf.get(CONF_PLOT_SAVE_PATH)
         self._remove_handle_exp_image = None
         self.wells_left = set()
 
@@ -83,7 +102,11 @@ class WorkFlow:
             x_wells = 12
             y_wells = 8
             state_data = [
-                {"plate_name": PLATE_NAME, "well_x": well_x, "well_y": well_y}
+                {
+                    SAMPLE_PLATE_NAME: PLATE_NAME,
+                    SAMPLE_WELL_X: well_x,
+                    SAMPLE_WELL_Y: well_y,
+                }
                 for well_x in range(x_wells)
                 for well_y in range(y_wells)
             ]
@@ -98,12 +121,17 @@ class WorkFlow:
 
     async def load_sample(self, state_data):
         """Load sample state."""
-        self.wells_left = {(data["well_x"], data["well_y"]) for data in state_data}
+        self.wells_left = {
+            (data[SAMPLE_WELL_X], data[SAMPLE_WELL_Y]) for data in state_data
+        }
         for data in state_data:
-            if data["plate_name"] not in self._center.sample.plates:
+            if data[SAMPLE_PLATE_NAME] not in self._center.sample.plates:
                 await self._center.actions.sample.set_plate(silent=True, **data)
-            well_coord = int(data["well_x"]), int(data["well_y"])
-            if well_coord not in self._center.sample.plates[data["plate_name"]].wells:
+            well_coord = int(data[SAMPLE_WELL_X]), int(data[SAMPLE_WELL_Y])
+            if (
+                well_coord
+                not in self._center.sample.plates[data[SAMPLE_PLATE_NAME]].wells
+            ):
                 await self._center.actions.sample.set_well(silent=True, **data)
             await self._center.actions.sample.set_channel(silent=True, **data)
             await self._center.actions.sample.set_field(silent=True, **data)
@@ -137,7 +165,7 @@ class WorkFlow:
 
         removes = []
         removes.append(self._center.bus.register(CAMACQ_START_EVENT, send_cam_job))
-        removes.append(self._center.bus.register("well_event", send_cam_job))
+        removes.append(self._center.bus.register(WELL_EVENT, send_cam_job))
 
         def remove_callback():
             """Remove all registered listeners of this method."""
@@ -183,7 +211,7 @@ class WorkFlow:
                 save_path=save_path,
             )
 
-        return self._center.bus.register("image_event", calc_gain)
+        return self._center.bus.register(IMAGE_EVENT, calc_gain)
 
     def set_exp_gain(self):
         """Set experiment gain."""
@@ -194,12 +222,12 @@ class WorkFlow:
                 (
                     channel
                     for channel in self.channels
-                    if event.channel_name == channel["channel"]
+                    if event.channel_name == channel[CONF_CHANNEL]
                 )
             )
-            exp = channel["job_name"]
-            num = channel["detector_num"]
-            gain = min(event.gain or channel["default_gain"], channel["max_gain"])
+            exp = channel[CONF_JOB_NAME]
+            num = channel[CONF_DETECTOR_NUM]
+            gain = min(event.gain or channel[CONF_DEFAULT_GAIN], channel[CONF_MAX_GAIN])
 
             command = gain_com(exp=exp, num=num, value=gain)
 
@@ -222,7 +250,7 @@ class WorkFlow:
         async def add_cam_job(center, event):
             """Add an experiment job to the cam list."""
             last_channel = self.channels[-1]
-            if not match_event(event, channel_name=last_channel["channel"]) or len(
+            if not match_event(event, channel_name=last_channel[CONF_CHANNEL]) or len(
                 event.well.channels
             ) != len(self.channels):
                 return
@@ -250,7 +278,7 @@ class WorkFlow:
             await center.actions.command.start_imaging()
             await center.actions.command.send(command="/cmd:startcamscan")
 
-        return self._center.bus.register("channel_event", add_cam_job)
+        return self._center.bus.register(CHANNEL_EVENT, add_cam_job)
 
     def handle_exp_image(self):
         """Handle experiment image."""
@@ -260,7 +288,7 @@ class WorkFlow:
             await self.rename_image(center, event)
             await self.set_sample_img_ok(center, event)
 
-        return self._center.bus.register("image_event", on_exp_image)
+        return self._center.bus.register(IMAGE_EVENT, on_exp_image)
 
     def stop_exp(self):
         """Trigger to stop experiment."""
@@ -281,7 +309,7 @@ class WorkFlow:
 
             _LOGGER.info("Congratulations, experiment is finished!")
 
-        return self._center.bus.register("well_event", stop_imaging)
+        return self._center.bus.register(WELL_EVENT, stop_imaging)
 
     async def send_gain_jobs(self, well_x, well_y):
         """Send gain cam jobs for the center fields of a well."""
