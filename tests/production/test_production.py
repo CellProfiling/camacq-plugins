@@ -70,8 +70,8 @@ class WorkflowImageEvent(ImageEvent):
         return self.data.get("job_id")
 
 
-async def test_duplicate_image_events(center, tmp_path):
-    """Test duplicate image events."""
+async def test_image_events(center, tmp_path):
+    """Test image events."""
     config = YAML(typ="safe").load(CONFIG)
     plate_name = "00"
     well_x = 0
@@ -125,7 +125,6 @@ async def test_duplicate_image_events(center, tmp_path):
             "channel_id": 31,
         }
     )
-    center.create_task(center.bus.notify(event))
     center.create_task(center.bus.notify(event))
     await center.wait_for()
 
