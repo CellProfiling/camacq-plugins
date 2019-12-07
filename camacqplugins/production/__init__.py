@@ -72,6 +72,7 @@ class WorkFlow:
         self.y_fields = well_layout["y_fields"]
         self.plot_save_path = conf.get("plot_save_path")
         self._remove_handle_exp_image = None
+        self.wells_left = set()
 
     async def setup(self, state_file):
         """Set up the flow."""
@@ -83,6 +84,11 @@ class WorkFlow:
         else:
             x_wells = 12
             y_wells = 8
+            self.wells_left = {
+                (well_x, well_y)
+                for well_x in range(x_wells)
+                for well_y in range(y_wells)
+            }
             self.start_exp()
             self.add_next_well(x_wells, y_wells)
             self.image_next_well_on_event()
@@ -91,11 +97,12 @@ class WorkFlow:
         self.set_exp_gain()
         self.add_exp_job()
         self._remove_handle_exp_image = self.handle_exp_image()
-        self.stop_exp(x_wells, y_wells)
+        self.stop_exp()
 
     async def load_sample(self, state_file):
         """Load sample state from file."""
         state_data = await self._center.add_executor_job(read_csv, state_file)
+        self.wells_left = {(data["well_x"], data["well_y"]) for data in state_data}
         for data in state_data:
             if data["plate_name"] not in self._center.sample.plates:
                 await self._center.actions.sample.set_plate(silent=True, **data)
@@ -121,7 +128,9 @@ class WorkFlow:
 
         async def set_next_well(center, event):
             """Run on well event."""
-            next_well_x, _ = next_well_xy(center.sample, PLATE_NAME, x_wells, y_wells)
+            next_well_x, next_well_y = next_well_xy(
+                center.sample, PLATE_NAME, x_wells, y_wells
+            )
 
             if (
                 not match_event(
@@ -131,16 +140,15 @@ class WorkFlow:
                     well_img_ok=True,
                 )
                 or next_well_x is None
+                or (next_well_x, next_well_y) not in self.wells_left
             ):
                 return
 
             await center.actions.command.stop_imaging()
-
-            well_x, well_y = next_well_xy(center.sample, PLATE_NAME, x_wells, y_wells)
-
             await center.actions.sample.set_well(
-                plate_name=PLATE_NAME, well_x=well_x, well_y=well_y
+                plate_name=PLATE_NAME, well_x=next_well_x, well_y=next_well_y
             )
+            self.wells_left.pop((next_well_x, next_well_y))
 
         return self._center.bus.register("well_event", set_next_well)
 
@@ -160,6 +168,7 @@ class WorkFlow:
                     well_img_ok=True,
                 )
                 or next_well_x is None
+                or (next_well_x, next_well_y) not in self.wells_left
             ):
                 return
 
@@ -168,6 +177,7 @@ class WorkFlow:
             await self.send_gain_jobs(
                 next_well_x, next_well_y,
             )
+            self.wells_left.pop((next_well_x, next_well_y))
 
         removes = []
         removes.append(self._center.bus.register("camacq_start_event", send_cam_job))
@@ -310,12 +320,11 @@ class WorkFlow:
 
         return self._center.bus.register("image_event", on_exp_image)
 
-    def stop_exp(self, x_wells, y_wells):
+    def stop_exp(self):
         """Trigger to stop experiment."""
 
         async def stop_imaging(center, event):
             """Run to stop the experiment."""
-            next_well_x, _ = next_well_xy(center.sample, PLATE_NAME, x_wells, y_wells)
             match = match_event(
                 event,
                 field_x=self.x_fields - 1,
@@ -323,7 +332,7 @@ class WorkFlow:
                 well_img_ok=True,
             )
 
-            if not match or next_well_x is not None:
+            if not match or self.wells_left:
                 return
 
             await center.actions.command.stop_imaging()
