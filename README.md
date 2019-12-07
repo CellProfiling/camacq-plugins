@@ -1,45 +1,44 @@
 # camacq-plugins
 
-Plugins for camacq
+Plugins for camacq:
 
-## Usage
-
-To allow the user to set up the sample state before starting an
-experiment, camacq can load the sample state from a file. In the production
-configuration section there is an option to specify a path to a csv
-file.
-
-```yaml
-production:
-  sample_state_file: '/sample_state.csv'
-```
-
-Each row in the csv file should represent a state of a sample container,
-ie plate, well, field or channel. The csv file should also have a
-header. See below.
-
-```
-plate_name,well_x,well_y,channel_name,gain
-00,1,1,blue,600
-```
-
-This example will set create a plate '00', a well (1, 1), a blue channel
-and set the gain of the blue channel to 600.
-
-```
-plate_name,well_x,well_y,field_x,field_y
-00,1,1,1,1
-```
-
-This example will create a plate '00' a well (1, 1) and a field (1, 1)
-in the sample state.
+- [production](camacqplugins/production)
 
 ## Installation
 
+- Clone and install the package.
+
+    ```sh
+    # Clone the repo.
+    git clone https://github.com/CellProfiling/camacq-plugins.git
+    # Enter directory.
+    cd camacq-plugins
+    # Install package.
+    pip install .
+    # Test that program is callable and show help.
+    camacq -h
+    ```
+
 ### Requirements
 
-## Compatibility
+- Python version 3.6+.
+- camacq >= 0.4.0
+
+## Usage
+
+Add configuration for the plugin you want to run.
+See the [config_templates](config_templates/) directory for example configuration.
+
+Then start `camacq`.
+
+```sh
+camacq
+```
 
 ## Licence
 
+- Apache-2.0.
+
 ## Authors
+
+- Martin Hjelmare
