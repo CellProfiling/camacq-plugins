@@ -36,6 +36,13 @@ SAMPLE_PLATE_NAME = "plate_name"
 SAMPLE_WELL_X = "well_x"
 SAMPLE_WELL_Y = "well_y"
 
+
+@vol.truth
+def is_csv(value):
+    """Return true if value ends with .csv."""
+    return value.endswith(".csv")
+
+
 CONFIG_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_GAIN_PATTERN_NAME): vol.Coerce(str),
@@ -60,7 +67,7 @@ CONFIG_SCHEMA = vol.Schema(
         },
         # pylint: disable=no-value-for-parameter
         CONF_PLOT_SAVE_PATH: vol.IsDir(),
-        CONF_SAMPLE_STATE_FILE: vol.IsFile(),
+        CONF_SAMPLE_STATE_FILE: vol.All(vol.IsFile(), is_csv, read_csv),
     },
 )
 
@@ -69,8 +76,8 @@ async def setup_module(center, config):
     """Set up production plugin."""
     conf = config["production"]
     flow = WorkFlow(center, conf)
-    state_file = conf.get(CONF_SAMPLE_STATE_FILE)
-    await flow.setup(state_file)
+    state_data = conf.get(CONF_SAMPLE_STATE_FILE)
+    await flow.setup(state_data)
 
 
 class WorkFlow:
@@ -94,11 +101,9 @@ class WorkFlow:
         self._remove_handle_exp_image = None
         self.wells_left = set()
 
-    async def setup(self, state_file):
+    async def setup(self, state_data):
         """Set up the flow."""
-        if state_file is not None:
-            state_data = await self._center.add_executor_job(read_csv, state_file)
-        else:
+        if state_data is None:
             x_wells = 12
             y_wells = 8
             state_data = [
