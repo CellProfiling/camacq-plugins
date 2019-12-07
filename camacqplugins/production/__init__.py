@@ -9,6 +9,7 @@ import voluptuous as vol
 from camacq.const import CAMACQ_START_EVENT, CHANNEL_EVENT, IMAGE_EVENT, WELL_EVENT
 from camacq.event import match_event
 from camacq.plugins.leica.command import cam_com, del_com, gain_com
+from camacq.plugins.sample import ACTION_TO_METHOD, ACTION_SET_PLATE
 from camacq.plugins.sample.helper import next_well_xy
 from camacq.util import read_csv
 
@@ -43,6 +44,37 @@ def is_csv(value):
     return value.endswith(".csv")
 
 
+def is_sample_state(value):
+    """Validate state data.
+
+    At least one sample action must validate per sample data item.
+    """
+    for idx, data in enumerate(value):
+        valid = False
+        error = None
+        for action, settings in ACTION_TO_METHOD.items():
+            if action == ACTION_SET_PLATE:
+                continue
+            schema = settings["schema"]
+            try:
+                data.update(schema(data))
+            except vol.Invalid as exc:
+                error = exc
+                continue
+            else:
+                valid = True
+
+        if not valid:
+            _LOGGER.error(
+                "The sample state file contains invalid data at row %s: %s",
+                idx + 2,
+                error,
+            )
+            raise error
+
+    return value
+
+
 CONFIG_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_GAIN_PATTERN_NAME): vol.Coerce(str),
@@ -67,7 +99,9 @@ CONFIG_SCHEMA = vol.Schema(
         },
         # pylint: disable=no-value-for-parameter
         CONF_PLOT_SAVE_PATH: vol.IsDir(),
-        CONF_SAMPLE_STATE_FILE: vol.All(vol.IsFile(), is_csv, read_csv),
+        CONF_SAMPLE_STATE_FILE: vol.All(
+            vol.IsFile(), is_csv, read_csv, is_sample_state
+        ),
     },
 )
 
@@ -128,7 +162,7 @@ class WorkFlow:
         for data in state_data:
             if data[SAMPLE_PLATE_NAME] not in self._center.sample.plates:
                 await self._center.actions.sample.set_plate(silent=True, **data)
-            well_coord = int(data[SAMPLE_WELL_X]), int(data[SAMPLE_WELL_Y])
+            well_coord = data[SAMPLE_WELL_X], data[SAMPLE_WELL_Y]
             self.wells_left.add(well_coord)
             if (
                 well_coord
