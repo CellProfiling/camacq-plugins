@@ -77,6 +77,18 @@ async def setup_module(center, config):
     conf = config["production"]
     flow = WorkFlow(center, conf)
     state_data = conf.get(CONF_SAMPLE_STATE_FILE)
+    if state_data is None:
+        x_wells = 12
+        y_wells = 8
+        state_data = [
+            {
+                SAMPLE_PLATE_NAME: PLATE_NAME,
+                SAMPLE_WELL_X: well_x,
+                SAMPLE_WELL_Y: well_y,
+            }
+            for well_x in range(x_wells)
+            for well_y in range(y_wells)
+        ]
     await flow.setup(state_data)
 
 
@@ -103,19 +115,6 @@ class WorkFlow:
 
     async def setup(self, state_data):
         """Set up the flow."""
-        if state_data is None:
-            x_wells = 12
-            y_wells = 8
-            state_data = [
-                {
-                    SAMPLE_PLATE_NAME: PLATE_NAME,
-                    SAMPLE_WELL_X: well_x,
-                    SAMPLE_WELL_Y: well_y,
-                }
-                for well_x in range(x_wells)
-                for well_y in range(y_wells)
-            ]
-
         await self.load_sample(state_data)
         self.image_next_well_on_sample()
         self.analyze_gain()
