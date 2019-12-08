@@ -133,3 +133,9 @@ dmypy.json
 !.vscode/cSpell.json
 !.vscode/extensions.json
 !.vscode/tasks.json
+
+# tiffs
+*.tif
+
+# pngs
+*.png
