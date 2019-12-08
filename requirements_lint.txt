@@ -1,0 +1,4 @@
+black==19.10b0
+flake8==3.7.9
+pydocstyle==4.0.1
+pylint==2.4.4
