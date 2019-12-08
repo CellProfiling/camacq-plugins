@@ -1,0 +1,11 @@
+gain:
+  channels:
+  - channel: green
+    init_gain: [450, 495, 540, 585, 630, 675, 720, 765, 810, 855, 900]
+  - channel: blue
+    init_gain: [700, 735, 770, 805, 840, 875, 910]
+  - channel: yellow
+    init_gain: [700, 735, 770, 805, 840, 875, 910]
+  - channel: red
+    init_gain: [600, 635, 670, 705, 740, 775, 810]
+  #save_dir: "/path/to/gains/dir"
