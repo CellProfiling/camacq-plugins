@@ -1,8 +1,6 @@
 """Provide a plugin for production standard flow."""
 import logging
-import tempfile
 from math import ceil
-from pathlib import Path
 
 import voluptuous as vol
 
@@ -29,7 +27,6 @@ CONF_MAX_GAIN = "max_gain"
 CONF_WELL_LAYOUT = "well_layout"
 CONF_X_FIELDS = "x_fields"
 CONF_Y_FIELDS = "y_fields"
-CONF_PLOT_SAVE_PATH = "plot_save_path"
 CONF_SAMPLE_STATE_FILE = "sample_state_file"
 
 PLATE_NAME = "00"
@@ -98,7 +95,6 @@ CONFIG_SCHEMA = vol.Schema(
             vol.Required(CONF_Y_FIELDS): vol.Coerce(int),
         },
         # pylint: disable=no-value-for-parameter
-        CONF_PLOT_SAVE_PATH: vol.IsDir(),
         CONF_SAMPLE_STATE_FILE: vol.All(
             vol.IsFile(), is_csv, read_csv, is_sample_state
         ),
@@ -143,7 +139,6 @@ class WorkFlow:
         well_layout = conf[CONF_WELL_LAYOUT]
         self.x_fields = well_layout[CONF_X_FIELDS]
         self.y_fields = well_layout[CONF_Y_FIELDS]
-        self.plot_save_path = conf.get(CONF_PLOT_SAVE_PATH)
         self._remove_handle_exp_image = None
         self.wells_left = set()
 
@@ -228,23 +223,8 @@ class WorkFlow:
                 return
 
             await center.actions.command.stop_imaging()
-
-            if self.plot_save_path is None:
-                save_path = Path(tempfile.gettempdir()) / event.plate_name
-            else:
-                save_path = Path(self.plot_save_path)
-            if not save_path.exists():
-                await center.add_executor_job(save_path.mkdir)
-
-            # This should be a path to a base file name, not to a dir or file.
-            save_path = save_path / f"{event.well_x}--{event.well_y}"
-
             await center.actions.gain.calc_gain(
-                plate_name=event.plate_name,
-                well_x=event.well_x,
-                well_y=event.well_y,
-                make_plots=True,
-                save_path=save_path,
+                plate_name=event.plate_name, well_x=event.well_x, well_y=event.well_y,
             )
 
         return self._center.bus.register(IMAGE_EVENT, calc_gain)

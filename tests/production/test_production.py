@@ -70,17 +70,13 @@ class WorkflowImageEvent(ImageEvent):
         return self.data.get("job_id")
 
 
-async def test_image_events(center, tmp_path):
+async def test_image_events(center):
     """Test image events."""
     config = YAML(typ="safe").load(CONFIG)
     plate_name = "00"
     well_x = 0
     well_y = 0
-    save_path = tmp_path / plate_name
-    await center.add_executor_job(save_path.mkdir)
-    config["production"]["plot_save_path"] = save_path
     await plugins.setup_module(center, config)
-    save_path = save_path / f"{well_x}--{well_y}"
     calc_gain = CoroutineMock()
     gains = {
         "green": 800,
@@ -130,12 +126,7 @@ async def test_image_events(center, tmp_path):
 
     assert calc_gain.call_count == 1
     assert calc_gain.call_args == call(
-        action_id="calc_gain",
-        plate_name=plate_name,
-        well_x=well_x,
-        well_y=well_y,
-        make_plots=True,
-        save_path=save_path,
+        action_id="calc_gain", plate_name=plate_name, well_x=well_x, well_y=well_y,
     )
     for channel_name, gain in gains.items():
         channel = center.sample.get_channel(plate_name, well_x, well_y, channel_name)

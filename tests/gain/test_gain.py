@@ -1,5 +1,4 @@
 """Test gain calculation."""
-import pprint
 from functools import partial
 
 import pytest
@@ -8,13 +7,12 @@ from camacq.plugins.leica import LeicaImageEvent
 from camacq.plugins.leica.helper import get_imgs
 from camacq.const import JOB_ID
 from camacq.image import make_proj
-from camacq.plugins.gain import GAIN_CALC_EVENT, calc_gain
-from tests.common import GAIN_DATA_DIR, WELL_NAME, WELL_PATH
+from camacqplugins.gain import GAIN_CALC_EVENT, calc_gain
+from tests.common import WELL_PATH
 
 # All test coroutines will be treated as marked.
 pytestmark = pytest.mark.asyncio  # pylint: disable=invalid-name
 
-SAVE_PATH = WELL_PATH / WELL_NAME
 PLATE_NAME = "slide"
 WELL_X, WELL_Y = 1, 0
 GAIN_IMAGE_JOB_ID = 2
@@ -28,7 +26,6 @@ async def test_gain(center):
     images = await center.add_executor_job(get_images)
     config = {
         "gain": {
-            "save_dir": GAIN_DATA_DIR,
             "channels": [
                 {
                     "channel": "green",
@@ -55,7 +52,6 @@ async def test_gain(center):
             ],
         }
     }
-    pprint.pprint(config)
     events = [LeicaImageEvent({"path": path}) for path in images]
     images = {event.channel_id: event.path for event in events}
     projs = await center.add_executor_job(make_proj, images)
@@ -74,17 +70,8 @@ async def test_gain(center):
     center.bus.register(GAIN_CALC_EVENT, handle_gain_event)
 
     await calc_gain(
-        center,
-        config,
-        PLATE_NAME,
-        WELL_X,
-        WELL_Y,
-        projs,
-        plot=False,
-        save_path=SAVE_PATH,
+        center, config, PLATE_NAME, WELL_X, WELL_Y, projs,
     )
-    await center.wait_for()
 
-    pprint.pprint(calculated)
     solution = {"blue": 480, "green": 740, "red": 805, "yellow": 805}
     assert calculated == pytest.approx(solution, abs=10)

@@ -1,10 +1,10 @@
 """Handle default gain feedback plugin."""
 import logging
 import os
-import tempfile
 from collections import defaultdict, namedtuple
 from functools import partial
 from itertools import groupby
+from pathlib import Path
 
 import matplotlib
 import pandas as pd
@@ -42,9 +42,6 @@ CALC_GAIN_ACTION_SCHEMA = BASE_ACTION_SCHEMA.extend(
         vol.Required("well_y"): vol.Coerce(int),
         vol.Required("plate_name"): vol.Coerce(str),
         "images": [vol.Coerce(str)],
-        # pylint: disable=no-value-for-parameter
-        vol.Optional("make_plots", default=False): vol.Boolean(),
-        vol.Optional("save_path", default=""): vol.Coerce(str),
     }
 )
 
@@ -57,7 +54,7 @@ CONFIG_SCHEMA = vol.Schema(
             }
         ],
         # pylint: disable=no-value-for-parameter
-        vol.Optional(CONF_SAVE_DIR, default=tempfile.gettempdir()): vol.IsDir(),
+        vol.Optional(CONF_SAVE_DIR): vol.IsDir(),
     }
 )
 
@@ -85,12 +82,8 @@ async def setup_module(center, config):
                 for path, image in center.sample.images.items()
                 if path in paths
             }
-        plot = kwargs.get("make_plots")
-        save_path = kwargs.get("save_path")  # path to save plots
         projs = await center.add_executor_job(make_proj, images)
-        await calc_gain(
-            center, config, plate_name, well_x, well_y, projs, plot, save_path
-        )
+        await calc_gain(center, config, plate_name, well_x, well_y, projs)
 
     center.actions.register(
         "gain", ACTION_CALC_GAIN, handle_calc_gain, CALC_GAIN_ACTION_SCHEMA
@@ -98,27 +91,30 @@ async def setup_module(center, config):
 
 
 async def calc_gain(
-    center, config, plate_name, well_x, well_y, projs, plot=True, save_path=""
+    center, config, plate_name, well_x, well_y, projs,
 ):
     """Calculate gain values for the well."""
     # pylint: disable=too-many-arguments, too-many-locals
     gain_conf = config[CONF_GAIN]
+    save_dir = gain_conf.get(CONF_SAVE_DIR) or ""
+    make_plots = bool(save_dir)
+    plot_dir = Path(save_dir) / "plots"
     init_gain = [
         Channel(channel[CONF_CHANNEL], gain=gain)
         for channel in gain_conf[CONF_CHANNELS]
         for gain in channel[CONF_INIT_GAIN]
     ]
 
+    # This should be a path to a base file name, not to a dir or file.
+    plot_path = plot_dir / f"U{well_x:02}--V{well_y:02}"
     gains = await center.add_executor_job(
-        partial(_calc_gain, projs, init_gain, plot=plot, save_path=save_path)
+        partial(_calc_gain, projs, init_gain, plot=make_plots, save_path=plot_path)
     )
     _LOGGER.info("Calculated gains: %s", gains)
     if SAVED_GAINS not in center.data:
         center.data[SAVED_GAINS] = defaultdict(dict)
     center.data[SAVED_GAINS].update({WELL_NAME.format(well_x, well_y): gains})
-    _LOGGER.debug("All calculated gains: %s", center.data[SAVED_GAINS])
-    if plot:
-        save_dir = gain_conf[CONF_SAVE_DIR]
+    if make_plots:
         await center.add_executor_job(
             save_gain, save_dir, center.data[SAVED_GAINS], [WELL] + list(gains)
         )

@@ -32,7 +32,6 @@ production:
   well_layout:
     x_fields: 2
     y_fields: 3
-  #plot_save_path: "/path/to/gains/dir/00/"
 
 gain:
   channels:
