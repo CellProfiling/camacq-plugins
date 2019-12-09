@@ -7,7 +7,7 @@ import pytest
 from camacq.plugins.leica import LeicaImageEvent
 from camacq.image import ImageData
 from camacqplugins.gain import GAIN_CALC_EVENT, calc_gain
-from tests.common import GAIN_DATA_DIR
+from tests.common import IMAGE_DATA_DIR
 
 # All test coroutines will be treated as marked.
 pytestmark = pytest.mark.asyncio  # pylint: disable=invalid-name
@@ -62,7 +62,7 @@ async def test_gain(center):
             ],
         }
     }
-    image_fixture = GAIN_DATA_DIR / "image_data.npz"
+    image_fixture = IMAGE_DATA_DIR / "image_data.npz"
     image_data = await center.add_executor_job(np.load, image_fixture)
     events = [LeicaImageEvent({"path": path}) for path in image_data]
     images = {

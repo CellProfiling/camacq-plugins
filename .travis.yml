@@ -7,5 +7,4 @@ python:
   - "3.8"
 install:
   - pip install -U tox-travis
-before_script: "./scripts/setup_tests.py"
 script: tox
