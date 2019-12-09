@@ -8,7 +8,7 @@ from ruamel.yaml import YAML
 
 from camacq import plugins
 from camacq.plugins.api import ImageEvent
-from camacq.plugins.gain import GainCalcEvent
+from camacqplugins.gain import GainCalcEvent
 
 # All test coroutines will be treated as marked.
 pytestmark = pytest.mark.asyncio  # pylint: disable=invalid-name

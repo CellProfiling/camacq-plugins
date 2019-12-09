@@ -75,10 +75,10 @@ async def setup_module(center, config):
             well = center.sample.get_well(plate_name, well_x, well_y)
             if not well:
                 return
-            images = {image.channel_id: path for path, image in well.images.items()}
+            images = {path: image.channel_id for path, image in well.images.items()}
         else:
             images = {
-                image.channel_id: path
+                path: image.channel_id
                 for path, image in center.sample.images.items()
                 if path in paths
             }

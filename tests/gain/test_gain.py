@@ -1,29 +1,39 @@
 """Test gain calculation."""
-from functools import partial
+from collections import defaultdict
 
+import numpy as np
 import pytest
 
 from camacq.plugins.leica import LeicaImageEvent
-from camacq.plugins.leica.helper import get_imgs
-from camacq.const import JOB_ID
-from camacq.image import make_proj
+from camacq.image import ImageData
 from camacqplugins.gain import GAIN_CALC_EVENT, calc_gain
-from tests.common import WELL_PATH
+from tests.common import GAIN_DATA_DIR
 
 # All test coroutines will be treated as marked.
 pytestmark = pytest.mark.asyncio  # pylint: disable=invalid-name
 
 PLATE_NAME = "slide"
 WELL_X, WELL_Y = 1, 0
-GAIN_IMAGE_JOB_ID = 2
+
+
+def make_proj(images):
+    """Mock make proj."""
+    sorted_images = defaultdict(list)
+    max_imgs = {}
+    for path, (channel, data) in images.items():
+        image = ImageData(path=path, data=data)
+        # Exclude images with 0, 16 or 256 pixel side.
+        # pylint: disable=len-as-condition
+        if len(image.data) == 0 or len(image.data) == 16 or len(image.data) == 256:
+            continue
+        sorted_images[channel].append(image)
+        proj = np.max([img.data for img in sorted_images[channel]], axis=0)
+        max_imgs[channel] = ImageData(path=path, data=proj)
+    return max_imgs
 
 
 async def test_gain(center):
     """Run gain calculation test."""
-    get_images = partial(
-        get_imgs, WELL_PATH.as_posix(), search=JOB_ID.format(GAIN_IMAGE_JOB_ID)
-    )
-    images = await center.add_executor_job(get_images)
     config = {
         "gain": {
             "channels": [
@@ -52,8 +62,12 @@ async def test_gain(center):
             ],
         }
     }
-    events = [LeicaImageEvent({"path": path}) for path in images]
-    images = {event.channel_id: event.path for event in events}
+    image_fixture = GAIN_DATA_DIR / "image_data.npz"
+    image_data = await center.add_executor_job(np.load, image_fixture)
+    events = [LeicaImageEvent({"path": path}) for path in image_data]
+    images = {
+        event.path: (event.channel_id, image_data[event.path]) for event in events
+    }
     projs = await center.add_executor_job(make_proj, images)
     calculated = {}
 
@@ -73,5 +87,5 @@ async def test_gain(center):
         center, config, PLATE_NAME, WELL_X, WELL_Y, projs,
     )
 
-    solution = {"blue": 480, "green": 740, "red": 805, "yellow": 805}
+    solution = {"blue": 480, "green": 740, "red": 745, "yellow": 805}
     assert calculated == pytest.approx(solution, abs=10)
