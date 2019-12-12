@@ -99,6 +99,8 @@ async def calc_gain(
     save_dir = gain_conf.get(CONF_SAVE_DIR) or ""
     make_plots = bool(save_dir)
     plot_dir = Path(save_dir) / "plots"
+    await center.add_executor_job(ensure_plot_dir, plot_dir)
+
     init_gain = [
         Channel(channel[CONF_CHANNEL], gain=gain)
         for channel in gain_conf[CONF_CHANNELS]
@@ -261,6 +263,11 @@ def save_gain(save_dir, saved_gains, header):
     """Save a csv file with gain values per image channel."""
     path = os.path.normpath(os.path.join(save_dir, "output_gains.csv"))
     write_csv(path, saved_gains, header)
+
+def ensure_plot_dir(plot_dir):
+    """Make sure that plot dir exists."""
+    if not plot_dir.exists():
+        plot_dir.mkdir()
 
 
 class GainCalcEvent(Event):
