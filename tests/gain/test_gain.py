@@ -1,5 +1,5 @@
 """Test gain calculation."""
-from unittest.mock import patch
+from unittest.mock import patch, PropertyMock
 
 import numpy as np
 import pytest
@@ -18,8 +18,13 @@ WELL_X, WELL_Y = 1, 0
 
 @pytest.fixture(name="load_image")
 def load_image_fixture():
-    """Patch load image."""
-    with patch("camacq.image.ImageData._load_image_data", autospec=True) as load_image:
+    """Patch load image and metadata."""
+    with patch(
+        "camacq.image.ImageData._load_image_data", autospec=True
+    ) as load_image, patch(
+        "camacq.image.ImageData.metadata", new_callable=PropertyMock
+    ) as mock_metadata:
+        mock_metadata.return_value = ""
         yield load_image
 
 
