@@ -7,7 +7,7 @@ PROJECT_DIR = Path(__file__).parent.resolve()
 VERSION = (PROJECT_DIR / "camacqplugins" / "VERSION").read_text().strip()
 README_FILE = PROJECT_DIR / "README.md"
 LONG_DESCR = README_FILE.read_text(encoding="utf-8")
-REQUIRES = ["camacq"]
+REQUIRES = ["camacq>=0.5.0", "matplotlib", "pandas", "scipy"]
 
 
 setuptools.setup(
@@ -23,7 +23,12 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     python_requires=">=3.6",
     install_requires=REQUIRES,
-    entry_points={"camacq.plugins": ["production = camacqplugins.production",],},
+    entry_points={
+        "camacq.plugins": [
+            "gain = camacqplugins.gain",
+            "production = camacqplugins.production",
+        ],
+    },
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
         "Programming Language :: Python",
