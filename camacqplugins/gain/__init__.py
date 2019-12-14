@@ -264,6 +264,7 @@ def save_gain(save_dir, saved_gains, header):
     path = os.path.normpath(os.path.join(save_dir, "output_gains.csv"))
     write_csv(path, saved_gains, header)
 
+
 def ensure_plot_dir(plot_dir):
     """Make sure that plot dir exists."""
     if not plot_dir.exists():
