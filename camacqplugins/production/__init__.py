@@ -4,11 +4,15 @@ from math import ceil
 
 import voluptuous as vol
 
-from camacq.const import CAMACQ_START_EVENT, CHANNEL_EVENT, IMAGE_EVENT, WELL_EVENT
+from camacq.const import CAMACQ_START_EVENT, IMAGE_EVENT
 from camacq.event import match_event
 from camacq.plugins.leica.command import cam_com, del_com, gain_com
-from camacq.plugins.sample import ACTION_TO_METHOD, ACTION_SET_PLATE
-from camacq.plugins.sample.helper import next_well_xy
+from camacq.plugins.leica.sample import (
+    CHANNEL_EVENT,
+    SET_SAMPLE_SCHEMA,
+    WELL_EVENT,
+    next_well_xy,
+)
 from camacq.util import read_csv
 
 _LOGGER = logging.getLogger(__name__)
@@ -49,10 +53,9 @@ def is_sample_state(value):
     for idx, data in enumerate(value):
         valid = False
         error = None
-        for action, settings in ACTION_TO_METHOD.items():
-            if action == ACTION_SET_PLATE:
+        for schema in SET_SAMPLE_SCHEMA.validators:
+            if schema.schema["name"] == "plate":
                 continue
-            schema = settings["schema"]
             try:
                 data.update(schema(data))
             except vol.Invalid as exc:

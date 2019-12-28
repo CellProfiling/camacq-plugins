@@ -11,9 +11,7 @@ import pandas as pd
 import voluptuous as vol
 from scipy.optimize import curve_fit
 
-from camacq.const import CHANNEL_ID, WELL, WELL_NAME
 from camacq.event import Event
-from camacq.plugins.sample import Channel
 from camacq.helper import BASE_ACTION_SCHEMA
 from camacq.image import make_proj
 from camacq.util import write_csv
@@ -26,6 +24,7 @@ _LOGGER = logging.getLogger(__name__)
 BOX = "box"
 COUNT = "count"
 VALID = "valid"
+CHANNEL_ID = "C{:02d}"
 CONF_CHANNEL = "channel"
 CONF_CHANNELS = "channels"
 CONF_GAIN = "gain"
@@ -34,6 +33,8 @@ CONF_SAVE_DIR = "save_dir"
 COUNT_CLOSE_TO_ZERO = 2
 GAIN_CALC_EVENT = "gain_calc_event"
 SAVED_GAINS = "saved_gains"
+WELL = "well"
+WELL_NAME = "U{:02d}--V{:02d}"
 
 ACTION_CALC_GAIN = "calc_gain"
 CALC_GAIN_ACTION_SCHEMA = BASE_ACTION_SCHEMA.extend(
@@ -60,6 +61,7 @@ CONFIG_SCHEMA = vol.Schema(
 
 GAIN = "gain"
 Data = namedtuple("Data", [BOX, GAIN, VALID])  # pylint: disable=invalid-name
+Channel = namedtuple("Channel", ["name", GAIN])  # pylint: disable=invalid-name
 
 
 async def setup_module(center, config):
@@ -108,7 +110,7 @@ async def calc_gain(
     ]
 
     # This should be a path to a base file name, not to a dir or file.
-    plot_path = plot_dir / f"U{well_x:02}--V{well_y:02}"
+    plot_path = plot_dir / WELL_NAME.format(well_x, well_y)
     gains = await center.add_executor_job(
         partial(_calc_gain, projs, init_gain, plot=make_plots, save_path=plot_path)
     )
@@ -209,7 +211,7 @@ def _calc_gain(projs, init_gain, plot=True, save_path=""):
         y_data = roi[BOX].astype(float).values
         coeffs, _ = curve_fit(_power_func, x_data, y_data, p0=(1000, -1))
         if plot:
-            _save_path = "{}{}.ome.png".format(save_path, CHANNEL_ID.format(c_id))
+            _save_path = "{}_{}.ome.png".format(save_path, CHANNEL_ID.format(c_id))
             _create_plot(
                 _save_path, hist_data[COUNT], hist_data[BOX], coeffs, "count-box"
             )
