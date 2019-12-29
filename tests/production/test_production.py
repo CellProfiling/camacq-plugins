@@ -8,6 +8,7 @@ from ruamel.yaml import YAML
 
 from camacq import plugins
 from camacq.plugins.api import ImageEvent
+from camacq.plugins.sample import get_matched_samples
 from camacqplugins.gain import GainCalcEvent
 
 # All test coroutines will be treated as marked.
@@ -50,12 +51,12 @@ production:
 """
 
 SAMPLE_STATE = """
-plate_name,well_x,well_y,channel_name,gain,field_x,field_y
-00,0,0,,,0,0
-00,0,0,,,0,1
-00,0,1
-00,1,0
-00,1,1
+name,plate_name,well_x,well_y,field_x,field_y
+field,00,0,0,0,0
+field,00,0,0,0,1
+well,00,0,1
+well,00,1,0
+well,00,1,1
 """.strip()
 
 
@@ -70,7 +71,7 @@ class WorkflowImageEvent(ImageEvent):
         return self.data.get("job_id")
 
 
-async def test_image_events(center):
+async def test_image_events(center, leica_sample):
     """Test image events."""
     config = YAML(typ="safe").load(CONFIG)
     plate_name = "00"
@@ -118,6 +119,7 @@ async def test_image_events(center):
             "field_x": 1,
             "field_y": 1,
             "job_id": 3,
+            "z_slice_id": 0,
             "channel_id": 31,
         }
     )
@@ -128,12 +130,24 @@ async def test_image_events(center):
     assert calc_gain.call_args == call(
         action_id="calc_gain", plate_name=plate_name, well_x=well_x, well_y=well_y,
     )
+
+    channels = {
+        channel["channel"]: channel_id
+        for channel_id, channel in enumerate(config["production"]["channels"])
+    }
+
     for channel_name, gain in gains.items():
-        channel = center.sample.get_channel(plate_name, well_x, well_y, channel_name)
-        assert channel.gain == gain
+        channel = center.samples.leica.get_sample(
+            "channel",
+            plate_name=plate_name,
+            well_x=well_x,
+            well_y=well_y,
+            channel_id=channels[channel_name],
+        )
+        assert channel.values["gain"] == gain
 
 
-async def test_load_sample(center, tmp_path):
+async def test_load_sample(center, leica_sample, tmp_path):
     """Test loading sample state from file."""
     state_file = tmp_path / "state_file.csv"
     state_file.write_text(SAMPLE_STATE)
@@ -143,7 +157,13 @@ async def test_load_sample(center, tmp_path):
     await plugins.setup_module(center, config)
     await center.wait_for()
 
-    plate = center.sample.get_plate(plate_name)
-    assert len(plate.wells) == 4
-    well = center.sample.get_well(plate_name, 0, 0)
-    assert len(well.fields) == 2
+    wells = get_matched_samples(
+        center.samples.leica, "well", {"plate_name": plate_name}
+    )
+    assert len(wells) == 4
+    fields = get_matched_samples(
+        center.samples.leica,
+        "field",
+        {"plate_name": plate_name, "well_x": 0, "well_y": 0},
+    )
+    assert len(fields) == 2

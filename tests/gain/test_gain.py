@@ -28,7 +28,7 @@ def load_image_fixture():
         yield load_image
 
 
-async def test_gain(center, load_image):
+async def test_gain(center, leica_sample, load_image):
     """Run gain calculation test."""
     config = {
         "gain": {

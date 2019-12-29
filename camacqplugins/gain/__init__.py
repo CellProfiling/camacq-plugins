@@ -69,19 +69,21 @@ async def setup_module(center, config):
 
     async def handle_calc_gain(**kwargs):
         """Handle call to calc_gain action."""
-        well_x = kwargs.get("well_x")
-        well_y = kwargs.get("well_y")
-        plate_name = kwargs.get("plate_name")
+        well_x = kwargs["well_x"]
+        well_y = kwargs["well_y"]
+        plate_name = kwargs["plate_name"]
         paths = kwargs.get("images")  # list of paths to calculate gain for
         if not paths:
-            well = center.sample.get_well(plate_name, well_x, well_y)
+            well = center.samples.leica.get_sample(
+                "well", plate_name=plate_name, well_x=well_x, well_y=well_y
+            )
             if not well:
                 return
             images = {path: image.channel_id for path, image in well.images.items()}
         else:
             images = {
                 path: image.channel_id
-                for path, image in center.sample.images.items()
+                for path, image in center.samples.leica.images.items()
                 if path in paths
             }
         projs = await center.add_executor_job(make_proj, images)

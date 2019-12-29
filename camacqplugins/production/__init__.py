@@ -13,6 +13,7 @@ from camacq.plugins.leica.sample import (
     WELL_EVENT,
     next_well_xy,
 )
+from camacq.plugins.sample import get_matched_samples
 from camacq.util import read_csv
 
 _LOGGER = logging.getLogger(__name__)
@@ -50,19 +51,24 @@ def is_sample_state(value):
 
     At least one sample action must validate per sample data item.
     """
+    schemas = list(SET_SAMPLE_SCHEMA.validators)
     for idx, data in enumerate(value):
         valid = False
         error = None
-        for schema in SET_SAMPLE_SCHEMA.validators:
-            if schema.schema["name"] == "plate":
+        sample_name = data.get("name")
+        for schema in schemas:
+            if (
+                schema.schema["name"] in ("plate", "image")
+                or schema.schema["name"] != sample_name
+            ):
                 continue
             try:
                 data.update(schema(data))
             except vol.Invalid as exc:
                 error = exc
                 continue
-            else:
-                valid = True
+            valid = True
+            break
 
         if not valid:
             _LOGGER.error(
@@ -70,7 +76,9 @@ def is_sample_state(value):
                 idx + 2,
                 error,
             )
-            raise error
+            if error:
+                raise error
+            raise vol.Invalid("Invalid sample state file.")
 
     return value
 
@@ -158,24 +166,16 @@ class WorkFlow:
     async def load_sample(self, state_data):
         """Load sample state."""
         for data in state_data:
-            if data[SAMPLE_PLATE_NAME] not in self._center.sample.plates:
-                await self._center.actions.sample.set_plate(silent=True, **data)
             well_coord = data[SAMPLE_WELL_X], data[SAMPLE_WELL_Y]
             self.wells_left.add(well_coord)
-            if (
-                well_coord
-                not in self._center.sample.plates[data[SAMPLE_PLATE_NAME]].wells
-            ):
-                await self._center.actions.sample.set_well(silent=True, **data)
-            await self._center.actions.sample.set_channel(silent=True, **data)
-            await self._center.actions.sample.set_field(silent=True, **data)
+            await self._center.actions.sample.set_sample(silent=True, **data)
 
     def image_next_well_on_sample(self):
         """Image next well in existing sample."""
 
         async def send_cam_job(center, event):
             """Run on well event."""
-            next_well_x, next_well_y = next_well_xy(center.sample, PLATE_NAME)
+            next_well_x, next_well_y = next_well_xy(center.samples.leica, PLATE_NAME)
 
             if (
                 not match_event(event, event_type=CAMACQ_START_EVENT)
@@ -190,7 +190,7 @@ class WorkFlow:
             ):
                 return
 
-            if center.sample.images:
+            if center.samples.leica.images:
                 await center.actions.command.stop_imaging()
             await self.send_gain_jobs(
                 next_well_x, next_well_y,
@@ -237,10 +237,10 @@ class WorkFlow:
 
         async def set_gain(center, event):
             """Set pmt gain."""
-            channel = next(
+            channel_id, channel = next(
                 (
-                    channel
-                    for channel in self.channels
+                    (channel_id, channel)
+                    for channel_id, channel in enumerate(self.channels)
                     if event.channel_name == channel[CONF_CHANNEL]
                 )
             )
@@ -253,12 +253,13 @@ class WorkFlow:
             # Set the gain at the microscope.
             await center.actions.command.send(command=command)
             # Set the gain in the sample state.
-            await center.actions.sample.set_channel(
+            await center.actions.sample.set_sample(
+                name="channel",
                 plate_name=event.plate_name,
                 well_x=event.well_x,
                 well_y=event.well_y,
-                channel_name=event.channel_name,
-                gain=gain,
+                channel_id=channel_id,
+                values={"channel_name": event.channel_name, "gain": gain},
             )
 
         return self._center.bus.register("gain_calc_event", set_gain)
@@ -269,8 +270,17 @@ class WorkFlow:
         async def add_cam_job(center, event):
             """Add an experiment job to the cam list."""
             last_channel = self.channels[-1]
+            channels = get_matched_samples(
+                center.samples.leica,
+                "channel",
+                {
+                    "plate_name": event.plate_name,
+                    "well_x": event.well_x,
+                    "well_y": event.well_y,
+                },
+            )
             if not match_event(event, channel_name=last_channel[CONF_CHANNEL]) or len(
-                event.well.channels
+                channels
             ) != len(self.channels):
                 return
 
@@ -377,13 +387,14 @@ class WorkFlow:
         if not match_event(event, job_id=self.exp_job_ids[-1]):
             return
 
-        await center.actions.sample.set_field(
+        await center.actions.sample.set_sample(
+            name="field",
             plate_name=event.plate_name,
             well_x=event.well_x,
             well_y=event.well_y,
             field_x=event.field_x,
             field_y=event.field_y,
-            img_ok=True,
+            values={"img_ok": True},
         )
 
 

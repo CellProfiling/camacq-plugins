@@ -35,20 +35,22 @@ production:
 ```
 
 Each row in the csv file should represent at least one state of a sample container,
-ie well, field or channel. A plate name must also be included. The csv file should have a
-header. See below.
+ie well, field, channel or z_slice. A plate name must also be included. The csv file should have a
+header. The first column should have the name of the most low level container to create.
+Eg a field must be part of a well which must be part of a plate, so field is the most low level
+container of those containers. See below.
 
 ```csv
-plate_name,well_x,well_y,channel_name,gain
-00,1,1,blue,600
+name,plate_name,well_x,well_y,channel_id
+channel,00,1,1,0
 ```
 
-This example will set a plate '00', a well (1, 1), a blue channel
-and set the gain of the blue channel to 600.
+This example will set a plate '00', a well (1, 1), and a channel
+with channel id 0.
 
 ```csv
-plate_name,well_x,well_y,field_x,field_y
-00,1,1,1,1
+name,plate_name,well_x,well_y,field_x,field_y
+field,00,1,1,1,1
 ```
 
 This example will create a plate '00' a well (1, 1) and a field (1, 1)
