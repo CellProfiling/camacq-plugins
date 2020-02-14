@@ -14,7 +14,6 @@ from scipy.optimize import curve_fit
 from camacq.event import Event
 from camacq.helper import BASE_ACTION_SCHEMA
 from camacq.image import make_proj
-from camacq.util import write_csv
 
 matplotlib.use("AGG")  # use noninteractive default backend
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -266,7 +265,9 @@ def _calc_gain(projs, init_gain, plot=True, save_path=""):
 def save_gain(save_dir, saved_gains, header):
     """Save a csv file with gain values per image channel."""
     path = os.path.normpath(os.path.join(save_dir, "output_gains.csv"))
-    write_csv(path, saved_gains, header)
+    data = pd.DataFrame.from_dict(saved_gains, orient="index", columns=[header[1:]])
+    data.index.name = header[0]
+    data.to_csv(path)
 
 
 def ensure_plot_dir(plot_dir):

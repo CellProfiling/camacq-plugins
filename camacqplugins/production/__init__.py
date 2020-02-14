@@ -2,6 +2,7 @@
 import logging
 from math import ceil
 
+import pandas as pd
 import voluptuous as vol
 
 from camacq.const import CAMACQ_START_EVENT, IMAGE_EVENT
@@ -14,7 +15,6 @@ from camacq.plugins.leica.sample import (
     next_well_xy,
 )
 from camacq.plugins.sample import get_matched_samples
-from camacq.util import read_csv
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,6 +38,17 @@ PLATE_NAME = "00"
 SAMPLE_PLATE_NAME = "plate_name"
 SAMPLE_WELL_X = "well_x"
 SAMPLE_WELL_Y = "well_y"
+
+
+def read_csv(path):
+    """Return a list where each item is a row and dict."""
+    try:
+        data = pd.read_csv(path, dtype=str)
+        data = data.fillna(value="")
+    except Exception as exc:  # pylint: disable=broad-except
+        _LOGGER.error("Failed to read csv file: %s", exc)
+        raise vol.Invalid from exc
+    return data.to_dict(orient="records")
 
 
 @vol.truth
@@ -78,7 +89,7 @@ def is_sample_state(value):
             )
             if error:
                 raise error
-            raise vol.Invalid("Invalid sample state file.")
+            raise vol.Invalid("Invalid sample state file")
 
     return value
 
