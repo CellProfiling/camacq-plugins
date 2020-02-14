@@ -15,7 +15,7 @@ setuptools.setup(
     version=VERSION,
     url="https://github.com/CellProfiling/camacq-plugins",
     author="Martin Hjelmare",
-    author_email="marhje52@kth.se",
+    author_email="marhje52@gmail.com",
     description="Plugins for camacq",
     license="Apache License 2.0",
     long_description=LONG_DESCR,
