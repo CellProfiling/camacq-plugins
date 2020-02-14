@@ -11,12 +11,9 @@ import pandas as pd
 import voluptuous as vol
 from scipy.optimize import curve_fit
 
-from camacq.const import CHANNEL_ID, WELL, WELL_NAME
 from camacq.event import Event
-from camacq.plugins.sample import Channel
 from camacq.helper import BASE_ACTION_SCHEMA
 from camacq.image import make_proj
-from camacq.util import write_csv
 
 matplotlib.use("AGG")  # use noninteractive default backend
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -26,6 +23,7 @@ _LOGGER = logging.getLogger(__name__)
 BOX = "box"
 COUNT = "count"
 VALID = "valid"
+CHANNEL_ID = "C{:02d}"
 CONF_CHANNEL = "channel"
 CONF_CHANNELS = "channels"
 CONF_GAIN = "gain"
@@ -34,6 +32,8 @@ CONF_SAVE_DIR = "save_dir"
 COUNT_CLOSE_TO_ZERO = 2
 GAIN_CALC_EVENT = "gain_calc_event"
 SAVED_GAINS = "saved_gains"
+WELL = "well"
+WELL_NAME = "U{:02d}--V{:02d}"
 
 ACTION_CALC_GAIN = "calc_gain"
 CALC_GAIN_ACTION_SCHEMA = BASE_ACTION_SCHEMA.extend(
@@ -60,6 +60,7 @@ CONFIG_SCHEMA = vol.Schema(
 
 GAIN = "gain"
 Data = namedtuple("Data", [BOX, GAIN, VALID])  # pylint: disable=invalid-name
+Channel = namedtuple("Channel", ["name", GAIN])  # pylint: disable=invalid-name
 
 
 async def setup_module(center, config):
@@ -67,19 +68,21 @@ async def setup_module(center, config):
 
     async def handle_calc_gain(**kwargs):
         """Handle call to calc_gain action."""
-        well_x = kwargs.get("well_x")
-        well_y = kwargs.get("well_y")
-        plate_name = kwargs.get("plate_name")
+        well_x = kwargs["well_x"]
+        well_y = kwargs["well_y"]
+        plate_name = kwargs["plate_name"]
         paths = kwargs.get("images")  # list of paths to calculate gain for
         if not paths:
-            well = center.sample.get_well(plate_name, well_x, well_y)
+            well = center.samples.leica.get_sample(
+                "well", plate_name=plate_name, well_x=well_x, well_y=well_y
+            )
             if not well:
                 return
             images = {path: image.channel_id for path, image in well.images.items()}
         else:
             images = {
                 path: image.channel_id
-                for path, image in center.sample.images.items()
+                for path, image in center.samples.leica.images.items()
                 if path in paths
             }
         projs = await center.add_executor_job(make_proj, images)
@@ -108,7 +111,7 @@ async def calc_gain(
     ]
 
     # This should be a path to a base file name, not to a dir or file.
-    plot_path = plot_dir / f"U{well_x:02}--V{well_y:02}"
+    plot_path = plot_dir / WELL_NAME.format(well_x, well_y)
     gains = await center.add_executor_job(
         partial(_calc_gain, projs, init_gain, plot=make_plots, save_path=plot_path)
     )
@@ -209,7 +212,7 @@ def _calc_gain(projs, init_gain, plot=True, save_path=""):
         y_data = roi[BOX].astype(float).values
         coeffs, _ = curve_fit(_power_func, x_data, y_data, p0=(1000, -1))
         if plot:
-            _save_path = "{}{}.ome.png".format(save_path, CHANNEL_ID.format(c_id))
+            _save_path = "{}_{}.ome.png".format(save_path, CHANNEL_ID.format(c_id))
             _create_plot(
                 _save_path, hist_data[COUNT], hist_data[BOX], coeffs, "count-box"
             )
@@ -262,7 +265,9 @@ def _calc_gain(projs, init_gain, plot=True, save_path=""):
 def save_gain(save_dir, saved_gains, header):
     """Save a csv file with gain values per image channel."""
     path = os.path.normpath(os.path.join(save_dir, "output_gains.csv"))
-    write_csv(path, saved_gains, header)
+    data = pd.DataFrame.from_dict(saved_gains, orient="index", columns=[header[1:]])
+    data.index.name = header[0]
+    data.to_csv(path)
 
 
 def ensure_plot_dir(plot_dir):
