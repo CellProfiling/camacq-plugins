@@ -35,6 +35,12 @@ Then start `camacq`.
 camacq
 ```
 
+## Development
+
+### Release
+
+See the [release instructions](RELEASE.md).
+
 ## Licence
 
 - Apache-2.0.
