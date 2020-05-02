@@ -210,6 +210,7 @@ def _calc_gain(projs, init_gain, plot=True, save_path=""):
             continue
         x_data = roi[COUNT].astype(float).values
         y_data = roi[BOX].astype(float).values
+        # pylint: disable=unbalanced-tuple-unpacking
         coeffs, _ = curve_fit(_power_func, x_data, y_data, p0=(1000, -1))
         if plot:
             _save_path = "{}_{}.ome.png".format(save_path, CHANNEL_ID.format(c_id))
@@ -242,7 +243,7 @@ def _calc_gain(projs, init_gain, plot=True, save_path=""):
         if len(long_group) < 3:
             gains[channel] = None
             continue
-        coeffs, _ = curve_fit(
+        coeffs, _ = curve_fit(  # pylint: disable=unbalanced-tuple-unpacking
             _power_func,
             [p[1].box for p in long_group],
             [p[1].gain for p in long_group],
