@@ -204,7 +204,8 @@ class WorkFlow:
             if center.samples.leica.images:
                 await center.actions.command.stop_imaging()
             await self.send_gain_jobs(
-                next_well_x, next_well_y,
+                next_well_x,
+                next_well_y,
             )
             self.wells_left.remove((next_well_x, next_well_y))
 
@@ -238,7 +239,9 @@ class WorkFlow:
 
             await center.actions.command.stop_imaging()
             await center.actions.gain.calc_gain(
-                plate_name=event.plate_name, well_x=event.well_x, well_y=event.well_y,
+                plate_name=event.plate_name,
+                well_x=event.well_x,
+                well_y=event.well_y,
             )
 
         return self._center.bus.register(IMAGE_EVENT, calc_gain)
