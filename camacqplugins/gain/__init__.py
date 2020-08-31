@@ -94,7 +94,12 @@ async def setup_module(center, config):
 
 
 async def calc_gain(
-    center, config, plate_name, well_x, well_y, projs,
+    center,
+    config,
+    plate_name,
+    well_x,
+    well_y,
+    projs,
 ):
     """Calculate gain values for the well."""
     # pylint: disable=too-many-arguments, too-many-locals

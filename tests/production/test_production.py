@@ -128,7 +128,10 @@ async def test_image_events(center, leica_sample):
 
     assert calc_gain.call_count == 1
     assert calc_gain.call_args == call(
-        action_id="calc_gain", plate_name=plate_name, well_x=well_x, well_y=well_y,
+        action_id="calc_gain",
+        plate_name=plate_name,
+        well_x=well_x,
+        well_y=well_y,
     )
 
     channels = {

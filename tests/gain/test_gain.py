@@ -49,12 +49,18 @@ async def test_gain(center, leica_sample, load_image):
                         900,
                     ],
                 },
-                {"channel": "blue", "init_gain": [400, 435, 470, 505, 540, 575, 610],},
+                {
+                    "channel": "blue",
+                    "init_gain": [400, 435, 470, 505, 540, 575, 610],
+                },
                 {
                     "channel": "yellow",
                     "init_gain": [550, 585, 620, 655, 690, 725, 760],
                 },
-                {"channel": "red", "init_gain": [525, 560, 595, 630, 665, 700, 735],},
+                {
+                    "channel": "red",
+                    "init_gain": [525, 560, 595, 630, 665, 700, 735],
+                },
             ],
         }
     }
