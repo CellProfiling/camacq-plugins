@@ -21,7 +21,7 @@ Plugins for camacq:
 
 ### Requirements
 
-- Python version 3.6+.
+- Python version 3.7+.
 - camacq >= 0.6.0
 
 ## Usage
