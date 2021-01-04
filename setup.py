@@ -21,7 +21,7 @@ setuptools.setup(
     long_description=LONG_DESCR,
     long_description_content_type="text/markdown",
     packages=setuptools.find_packages(),
-    python_requires=">=3.6",
+    python_requires=">=3.7",
     install_requires=REQUIRES,
     entry_points={
         "camacq.plugins": [
@@ -33,7 +33,6 @@ setuptools.setup(
         "Development Status :: 2 - Pre-Alpha",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
