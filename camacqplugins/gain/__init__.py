@@ -153,7 +153,7 @@ def _check_upward(points):
     def wrapped(point):
         """Return True if trend is upward.
 
-        The calculation is done for a point with neighbouring points.
+        The calculation is done for a point with neighboring points.
         """
         idx, item = point
         valid = item.valid and item.box <= 600
@@ -218,7 +218,7 @@ def _calc_gain(projs, init_gain, plot=True, save_path=""):
         # pylint: disable=unbalanced-tuple-unpacking
         coeffs, _ = curve_fit(_power_func, x_data, y_data, p0=(1000, -1))
         if plot:
-            _save_path = "{}_{}.ome.png".format(save_path, CHANNEL_ID.format(c_id))
+            _save_path = f"{save_path}_{CHANNEL_ID.format(c_id)}.ome.png"
             _create_plot(
                 _save_path, hist_data[COUNT], hist_data[BOX], coeffs, "count-box"
             )
@@ -255,7 +255,7 @@ def _calc_gain(projs, init_gain, plot=True, save_path=""):
             p0=(1, 1),
         )
         if plot:
-            _save_path = "{}_{}.png".format(save_path, channel)
+            _save_path = f"{save_path}_{channel}.png"
             _create_plot(
                 _save_path,
                 [p.box for p in points],
@@ -316,4 +316,4 @@ class GainCalcEvent(Event):
 
     def __repr__(self):
         """Return the representation."""
-        return "<{}: {}>".format(type(self).__name__, self.gain)
+        return f"<{type(self).__name__}: {self.gain}>"
