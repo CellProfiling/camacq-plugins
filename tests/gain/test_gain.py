@@ -9,9 +9,6 @@ from camacq.plugins.leica import LeicaImageEvent
 from camacqplugins.gain import GAIN_CALC_EVENT
 from tests.common import IMAGE_DATA_DIR
 
-# All test coroutines will be treated as marked.
-pytestmark = pytest.mark.asyncio  # pylint: disable=invalid-name
-
 PLATE_NAME = "slide"
 WELL_X, WELL_Y = 1, 0
 
