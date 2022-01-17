@@ -1,9 +1,8 @@
 """Test the production plugin."""
-from unittest.mock import call
+from unittest.mock import AsyncMock, call
 
 import pytest
 import voluptuous as vol
-from asynctest import CoroutineMock
 from ruamel.yaml import YAML
 
 from camacq import plugins
@@ -78,7 +77,7 @@ async def test_image_events(center, leica_sample):
     well_x = 0
     well_y = 0
     await plugins.setup_module(center, config)
-    calc_gain = CoroutineMock()
+    calc_gain = AsyncMock()
     gains = {
         "green": 800,
         "blue": 700,
