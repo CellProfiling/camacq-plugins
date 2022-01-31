@@ -144,7 +144,7 @@ async def calc_gain(
 
 def _power_func(inp, alpha, beta):
     """Return the value of function of inp, alpha and beta."""
-    return alpha * inp ** beta
+    return alpha * inp**beta
 
 
 def _check_upward(points):
