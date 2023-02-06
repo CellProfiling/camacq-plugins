@@ -60,8 +60,8 @@ def read_image_data(root_dir=None):
         except OSError as exc:
             print("Failed reading image:", exc)
             raise
-        else:
-            image_data.append({"path": path, "data": data})
+
+        image_data.append({"path": path, "data": data})
 
     return image_data
 
