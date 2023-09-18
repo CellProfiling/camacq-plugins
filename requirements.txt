@@ -1,4 +1,4 @@
 camacq==0.7.5
-matplotlib==3.7.2
+matplotlib==3.8.0
 pandas==2.0.3
 scipy==1.10.1
