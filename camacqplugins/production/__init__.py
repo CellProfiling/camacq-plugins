@@ -386,6 +386,8 @@ class WorkFlow:
             channel_id = 2
         elif event.job_id == self.exp_job_ids[2]:
             channel_id = 3
+        else:
+            return
 
         new_name = (
             f"U{event.well_x:02}--V{event.well_y:02}--E{event.job_id:02}--"
