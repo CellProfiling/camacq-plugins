@@ -1,4 +1,5 @@
 """Handle default gain feedback plugin."""
+
 import logging
 import os
 from collections import defaultdict, namedtuple

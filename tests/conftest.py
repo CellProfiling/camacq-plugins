@@ -1,4 +1,5 @@
 """Provide package level pytest fixtures."""
+
 import pytest
 
 from camacq.control import Center

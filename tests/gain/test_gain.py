@@ -1,4 +1,5 @@
 """Test gain calculation."""
+
 from unittest.mock import patch, PropertyMock
 
 import numpy as np

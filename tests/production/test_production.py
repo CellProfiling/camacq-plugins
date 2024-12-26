@@ -1,4 +1,5 @@
 """Test the production plugin."""
+
 from unittest.mock import AsyncMock, call
 
 import voluptuous as vol
