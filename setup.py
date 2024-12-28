@@ -10,7 +10,7 @@ VERSION = (
 )
 README_FILE = PROJECT_DIR / "README.md"
 LONG_DESCRIPTION = README_FILE.read_text(encoding="utf-8")
-REQUIRES = ["camacq>=0.6.0", "matplotlib", "pandas", "scipy"]
+REQUIRES = ["camacq>=0.8.0", "matplotlib", "pandas", "scipy"]
 
 
 setuptools.setup(
