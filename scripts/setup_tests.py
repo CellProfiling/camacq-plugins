@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Tool to generate image fixture for tests from real image data."""
+
 import argparse
 import fnmatch
 import gzip
