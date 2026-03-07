@@ -1,28 +1,45 @@
 # camacq-plugins
 
-Plugins for camacq:
+<p align="center">
+  <a href="https://github.com/CellProfiling/camacq-plugins/actions/workflows/ci.yml?query=branch%3Amain">
+    <img src="https://img.shields.io/github/actions/workflow/status/CellProfiling/camacq-plugins/ci.yml?branch=main&label=CI&logo=github&style=flat-square" alt="CI Status" >
+  </a>
+  <a href="https://codecov.io/gh/CellProfiling/camacq-plugins">
+    <img src="https://img.shields.io/codecov/c/github/CellProfiling/camacq-plugins.svg?logo=codecov&logoColor=fff&style=flat-square" alt="Test coverage percentage">
+  </a>
+</p>
+<p align="center">
+  <a href="https://github.com/astral-sh/uv">
+    <img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json" alt="uv">
+  </a>
+  <a href="https://github.com/astral-sh/ruff">
+    <img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json" alt="Ruff">
+  </a>
+  <a href="https://github.com/pre-commit/pre-commit">
+    <img src="https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white&style=flat-square" alt="pre-commit">
+  </a>
+</p>
+<p align="center">
+  <a href="https://pypi.org/project/camacq-plugins/">
+    <img src="https://img.shields.io/pypi/v/camacq-plugins.svg?logo=python&logoColor=fff&style=flat-square" alt="PyPI Version">
+  </a>
+  <img src="https://img.shields.io/pypi/pyversions/camacq-plugins.svg?style=flat-square&logo=python&amp;logoColor=fff" alt="Supported Python versions">
+  <img src="https://img.shields.io/pypi/l/camacq-plugins.svg?style=flat-square" alt="License">
+</p>
 
-- [production](camacqplugins/production/)
+---
+
+**Source Code**: <a href="https://github.com/CellProfiling/camacq-plugins" target="_blank">https://github.com/CellProfiling/camacq-plugins </a>
+
+---
+
+Plugins for camacq
 
 ## Installation
 
-- Clone and install the package.
+Install this via pip (or your favourite package manager):
 
-    ```sh
-    # Clone the repo.
-    git clone https://github.com/CellProfiling/camacq-plugins.git
-    # Enter directory.
-    cd camacq-plugins
-    # Install package.
-    pip install .
-    # Test that program is callable and show help.
-    camacq -h
-    ```
-
-### Requirements
-
-- Python version 3.10+.
-- camacq >= 0.6.0
+`pip install camacq-plugins`
 
 ## Usage
 
@@ -35,16 +52,11 @@ Then start `camacq`.
 camacq
 ```
 
-## Development
+## Credits
 
-### Release
+[![Copier](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/copier-org/copier/master/img/badge/badge-grayscale-inverted-border-orange.json)](https://github.com/copier-org/copier)
 
-See the [release instructions](RELEASE.md).
-
-## Licence
-
-- Apache-2.0.
-
-## Authors
-
-- Martin Hjelmare
+This package was created with
+[Copier](https://copier.readthedocs.io/) and the
+[browniebroke/pypackage-template](https://github.com/browniebroke/pypackage-template)
+project template.
