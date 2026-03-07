@@ -2,6 +2,18 @@
 
 <!-- version list -->
 
+## v0.4.0 (2026-03-07)
+
+### Chores
+
+- Update package structure ([#588](https://github.com/CellProfiling/camacq-plugins/pull/588),
+  [`d5ac11c`](https://github.com/CellProfiling/camacq-plugins/commit/d5ac11c2cd3c6b4571032c1044db80c054e99ab5))
+
+### Breaking Changes
+
+- Drop support for Python 3.10 and 3.11
+
+
 ## [v0.3.1](https://github.com/CellProfiling/camacq-plugins/tree/v0.3.1) (2026-03-07)
 
 [Full Changelog](https://github.com/CellProfiling/camacq-plugins/compare/v0.3.0...v0.3.1)

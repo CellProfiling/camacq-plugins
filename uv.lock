@@ -50,7 +50,7 @@ wheels = [
 
 [[package]]
 name = "camacq-plugins"
-version = "0.3.1"
+version = "0.4.0"
 source = { editable = "." }
 dependencies = [
     { name = "camacq" },
@@ -96,7 +96,7 @@ dev = [
     { name = "pytest-cov", specifier = "==7" },
     { name = "python-semantic-release", specifier = ">=10,<11" },
     { name = "ruff", specifier = "==0.15.5" },
-    { name = "scipy-stubs", specifier = "==1.17.1.0" },
+    { name = "scipy-stubs", specifier = "==1.17.1" },
 ]
 
 [[package]]
