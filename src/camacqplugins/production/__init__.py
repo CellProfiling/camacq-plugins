@@ -3,9 +3,6 @@
 import logging
 from math import ceil
 
-import pandas as pd
-import voluptuous as vol
-
 from camacq.const import CAMACQ_START_EVENT, IMAGE_EVENT
 from camacq.event import match_event
 from camacq.plugins.leica.command import cam_com, del_com, gain_com
@@ -16,6 +13,8 @@ from camacq.plugins.leica.sample import (
     next_well_xy,
 )
 from camacq.plugins.sample import get_matched_samples
+import pandas as pd
+import voluptuous as vol
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -190,12 +189,14 @@ class WorkFlow:
             next_well_x, next_well_y = next_well_xy(center.samples.leica, PLATE_NAME)
 
             if (
-                not match_event(event, event_type=CAMACQ_START_EVENT)
-                and not match_event(
-                    event,
-                    field_x=self.x_fields - 1,
-                    field_y=self.y_fields - 1,
-                    well_img_ok=True,
+                (
+                    not match_event(event, event_type=CAMACQ_START_EVENT)
+                    and not match_event(
+                        event,
+                        field_x=self.x_fields - 1,
+                        field_y=self.y_fields - 1,
+                        well_img_ok=True,
+                    )
                 )
                 or next_well_x is None
                 or (next_well_x, next_well_y) not in self.wells_left
@@ -214,7 +215,7 @@ class WorkFlow:
         removes.append(self._center.bus.register(CAMACQ_START_EVENT, send_cam_job))
         removes.append(self._center.bus.register(WELL_EVENT, send_cam_job))
 
-        def remove_callback():
+        def remove_callback() -> None:
             """Remove all registered listeners of this method."""
             for remove in removes:
                 remove()
@@ -362,8 +363,10 @@ class WorkFlow:
 
         await self._center.actions.command.send(command=del_com())
 
-        for field_x in range(field_x, field_x + 2):
-            command = cam_com(self.gain_pattern, well_x, well_y, field_x, field_y, 0, 0)
+        for field_x_ in range(field_x, field_x + 2):
+            command = cam_com(
+                self.gain_pattern, well_x, well_y, field_x_, field_y, 0, 0
+            )
             await self._center.actions.command.send(command=command)
 
         if self._remove_handle_exp_image is not None:

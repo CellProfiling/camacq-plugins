@@ -6,16 +6,13 @@ Add configuration for the `production`, `gain`, `leica` and `rename` plugin, in 
 See the [config_templates](../../config_templates/) directory for example configuration.
 
 ```yaml
-production:
-  ...
+production: ...
 
-gain:
-  ...
+gain: ...
 
 rename_image:
 
-leica:
-  ...
+leica: ...
 ```
 
 Then start `camacq`.
@@ -31,7 +28,7 @@ file.
 
 ```yaml
 production:
-  sample_state_file: '/sample_state.csv'
+  sample_state_file: "/sample_state.csv"
 ```
 
 Each row in the csv file should represent at least one state of a sample container,

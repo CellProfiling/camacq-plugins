@@ -1,24 +1,23 @@
 """Handle default gain feedback plugin."""
 
-import logging
-import os
 from collections import defaultdict, namedtuple
 from functools import partial
 from itertools import groupby
+import logging
+import os
 from pathlib import Path
-
-import matplotlib
-import pandas as pd
-import voluptuous as vol
-from scipy.optimize import curve_fit
 
 from camacq.event import Event
 from camacq.helper import BASE_ACTION_SCHEMA
 from camacq.image import make_proj
+import matplotlib
+import pandas as pd
+from scipy.optimize import curve_fit
+import voluptuous as vol
 
 matplotlib.use("AGG")  # use noninteractive default backend
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
-import matplotlib.pyplot as plt  # noqa: E402
+import matplotlib.pyplot as plt
 
 _LOGGER = logging.getLogger(__name__)
 BOX = "box"
@@ -127,7 +126,7 @@ async def calc_gain(
     center.data[SAVED_GAINS].update({WELL_NAME.format(well_x, well_y): gains})
     if make_plots:
         await center.add_executor_job(
-            save_gain, save_dir, center.data[SAVED_GAINS], [WELL] + list(gains)
+            save_gain, save_dir, center.data[SAVED_GAINS], [WELL, *list(gains)]
         )
 
     for channel_name, gain in gains.items():

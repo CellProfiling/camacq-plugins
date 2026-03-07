@@ -5,8 +5,8 @@ import argparse
 import fnmatch
 import gzip
 import os
-import shutil
 from pathlib import Path
+import shutil
 
 import numpy as np
 import tifffile

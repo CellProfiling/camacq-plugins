@@ -2,10 +2,9 @@
 
 import asyncio
 
-import pytest
-
 from camacq.control import Center
 from camacq.plugins.leica import sample as leica_sample_mod
+import pytest
 
 
 @pytest.fixture(name="center")

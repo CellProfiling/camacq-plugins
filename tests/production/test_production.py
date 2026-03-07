@@ -2,12 +2,12 @@
 
 from unittest.mock import AsyncMock, call
 
-import voluptuous as vol
-from ruamel.yaml import YAML
-
 from camacq import plugins
 from camacq.plugins.api import ImageEvent
 from camacq.plugins.sample import get_matched_samples
+from ruamel.yaml import YAML
+import voluptuous as vol
+
 from camacqplugins.gain import GainCalcEvent
 
 CONFIG = """
