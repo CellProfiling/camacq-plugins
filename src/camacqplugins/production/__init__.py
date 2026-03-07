@@ -48,7 +48,7 @@ def read_csv(path: str) -> list[dict[str, str]]:
     try:
         data = pd.read_csv(path, dtype=str)
         data = data.fillna(value="")
-    except Exception as exc:  # pylint: disable=broad-except
+    except Exception as exc:
         _LOGGER.error("Failed to read csv file: %s", exc)
         raise vol.Invalid("Failed to read csv file") from exc
     return data.to_dict(orient="records")  # type: ignore[return-value]
@@ -119,7 +119,6 @@ CONFIG_SCHEMA = vol.Schema(
             vol.Required(CONF_X_FIELDS): vol.Coerce(int),
             vol.Required(CONF_Y_FIELDS): vol.Coerce(int),
         },
-        # pylint: disable=no-value-for-parameter
         CONF_SAMPLE_STATE_FILE: vol.All(
             vol.IsFile(), is_csv, read_csv, is_sample_state
         ),
@@ -164,8 +163,6 @@ ChannelConfig = dict[str, str | int]
 
 class WorkFlow:
     """Represent the production workflow."""
-
-    # pylint: disable=too-many-instance-attributes
 
     def __init__(self, center: Center, conf: dict[str, Any]) -> None:
         """Set up instance."""

@@ -57,7 +57,6 @@ CONFIG_SCHEMA = vol.Schema(
                 vol.Required(CONF_INIT_GAIN): [vol.Coerce(int)],
             }
         ],
-        # pylint: disable=no-value-for-parameter
         vol.Optional(CONF_SAVE_DIR): vol.IsDir(),
     }
 )
@@ -123,7 +122,6 @@ async def calc_gain(
     projs: dict[int, ImageData],
 ) -> None:
     """Calculate gain values for the well."""
-    # pylint: disable=too-many-arguments, too-many-locals
     gain_conf = config[CONF_GAIN]
     save_dir = gain_conf.get(CONF_SAVE_DIR) or ""
     make_plots = bool(save_dir)
@@ -215,7 +213,6 @@ def _calc_gain(
 
     Do the actual math.
     """
-    # pylint: disable=too-many-locals
     box_vs_gain: dict[str, list[Data]] = {}
 
     for c_id, proj in projs.items():
@@ -246,7 +243,6 @@ def _calc_gain(
             continue
         x_data = roi[COUNT].astype(float).values
         y_data = roi[BOX].astype(float).values
-        # pylint: disable=unbalanced-tuple-unpacking
         coeffs, _ = curve_fit(_power_func, x_data, y_data, p0=(1000, -1))
         if plot:
             _save_path = f"{save_path}_{CHANNEL_ID.format(c_id)}.ome.png"
@@ -278,7 +274,7 @@ def _calc_gain(
         if len(long_group) < 3:
             gains[channel_name] = None
             continue
-        coeffs, _ = curve_fit(  # pylint: disable=unbalanced-tuple-unpacking
+        coeffs, _ = curve_fit(
             _power_func,
             [p[1].box for p in long_group],
             [p[1].gain for p in long_group],
