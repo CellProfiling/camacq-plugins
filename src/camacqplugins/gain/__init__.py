@@ -1,23 +1,27 @@
 """Handle default gain feedback plugin."""
 
-from collections import defaultdict, namedtuple
+from collections import defaultdict
+from collections.abc import Callable
 from functools import partial
 from itertools import groupby
 import logging
 import os
 from pathlib import Path
+from typing import Any, NamedTuple
 
+from camacq.control import Center
 from camacq.event import Event
 from camacq.helper import BASE_ACTION_SCHEMA
-from camacq.image import make_proj
+from camacq.image import ImageData, make_proj
 import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
+import numpy.typing as npt
 import pandas as pd
 from scipy.optimize import curve_fit
 import voluptuous as vol
 
 matplotlib.use("AGG")  # use noninteractive default backend
-# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
-import matplotlib.pyplot as plt
 
 _LOGGER = logging.getLogger(__name__)
 BOX = "box"
@@ -59,29 +63,46 @@ CONFIG_SCHEMA = vol.Schema(
 )
 
 GAIN = "gain"
-Data = namedtuple("Data", [BOX, GAIN, VALID])  # pylint: disable=invalid-name
-Channel = namedtuple("Channel", ["name", GAIN])  # pylint: disable=invalid-name
 
 
-async def setup_module(center, config):
+class Data(NamedTuple):
+    """Represent gain data."""
+
+    box: float
+    gain: int
+    valid: bool
+
+
+class Channel(NamedTuple):
+    """Represent a channel."""
+
+    name: str
+    gain: int
+
+
+async def setup_module(center: Center, config: dict[str, Any]) -> None:
     """Set up gain calculation plugin."""
 
-    async def handle_calc_gain(**kwargs):
+    async def handle_calc_gain(**kwargs: Any) -> None:
         """Handle call to calc_gain action."""
-        well_x = kwargs["well_x"]
-        well_y = kwargs["well_y"]
-        plate_name = kwargs["plate_name"]
-        paths = kwargs.get("images")  # list of paths to calculate gain for
+        well_x: int = kwargs["well_x"]
+        well_y: int = kwargs["well_y"]
+        plate_name: str = kwargs["plate_name"]
+        # list of paths to calculate gain for
+        paths: list[str] | None = kwargs.get("images")
         if not paths:
             well = center.samples.leica.get_sample(
                 "well", plate_name=plate_name, well_x=well_x, well_y=well_y
             )
             if not well:
                 return
-            images = {path: image.channel_id for path, image in well.images.items()}
+            images = {
+                path: image.channel_id  # type: ignore[attr-defined]
+                for path, image in well.images.items()
+            }
         else:
             images = {
-                path: image.channel_id
+                path: image.channel_id  # type: ignore[attr-defined]
                 for path, image in center.samples.leica.images.items()
                 if path in paths
             }
@@ -94,13 +115,13 @@ async def setup_module(center, config):
 
 
 async def calc_gain(
-    center,
-    config,
-    plate_name,
-    well_x,
-    well_y,
-    projs,
-):
+    center: Center,
+    config: dict[str, Any],
+    plate_name: str,
+    well_x: int,
+    well_y: int,
+    projs: dict[int, ImageData],
+) -> None:
     """Calculate gain values for the well."""
     # pylint: disable=too-many-arguments, too-many-locals
     gain_conf = config[CONF_GAIN]
@@ -142,15 +163,18 @@ async def calc_gain(
         await center.bus.notify(event)  # await in sequential order
 
 
-def _power_func(inp, alpha, beta):
+def _power_func(
+    inp: npt.NDArray[Any], alpha: float, beta: float, /
+) -> npt.NDArray[Any]:
     """Return the value of function of inp, alpha and beta."""
-    return alpha * inp**beta
+    result: npt.NDArray[Any] = alpha * inp**beta
+    return result
 
 
-def _check_upward(points):
+def _check_upward(points: list[Data]) -> Callable[[tuple[int, Data]], bool]:
     """Return a function that checks if points move upward."""
 
-    def wrapped(point):
+    def wrapped(point: tuple[int, Data]) -> bool:
         """Return True if trend is upward.
 
         The calculation is done for a point with neighboring points.
@@ -167,7 +191,9 @@ def _check_upward(points):
     return wrapped
 
 
-def _create_plot(path, x_data, y_data, coeffs, label):
+def _create_plot(
+    path: str, x_data: Any, y_data: Any, coeffs: npt.NDArray[Any], label: str
+) -> None:
     """Plot and save plot to path."""
     plt.ioff()
     plt.clf()
@@ -179,13 +205,18 @@ def _create_plot(path, x_data, y_data, coeffs, label):
     plt.savefig(path)
 
 
-def _calc_gain(projs, init_gain, plot=True, save_path=""):
+def _calc_gain(
+    projs: dict[int, ImageData],
+    init_gain: list[Channel],
+    plot: bool = True,
+    save_path: str | Path = "",
+) -> dict[str, int | None]:
     """Calculate gain values for the well.
 
     Do the actual math.
     """
     # pylint: disable=too-many-locals
-    box_vs_gain = {}
+    box_vs_gain: dict[str, list[Data]] = {}
 
     for c_id, proj in projs.items():
         channel = init_gain[c_id]
@@ -225,17 +256,16 @@ def _calc_gain(projs, init_gain, plot=True, save_path=""):
         # Find box value where count is close to zero.
         # Store that box value and it's corresponding gain value.
         # Store boolean saying if second slope coefficient is negative.
+        box_value = float(_power_func(np.array([COUNT_CLOSE_TO_ZERO]), *coeffs)[0])
         box_vs_gain[channel.name].append(
-            Data._make(
-                (_power_func(COUNT_CLOSE_TO_ZERO, *coeffs), channel.gain, coeffs[1] < 0)
-            )
+            Data(box_value, channel.gain, bool(coeffs[1] < 0))
         )
 
-    gains = {}
-    for channel, points in box_vs_gain.items():
+    gains: dict[str, int | None] = {}
+    for channel_name, points in box_vs_gain.items():
         # Sort points with ascending gain, to allow grouping.
         points = sorted(points, key=lambda item: item.gain)
-        long_group = []
+        long_group: list[tuple[int, Data]] = []
         for key, group in groupby(enumerate(points), _check_upward(points)):
             # Find the group with the most points and use that below.
             stored_group = list(group)
@@ -246,7 +276,7 @@ def _calc_gain(projs, init_gain, plot=True, save_path=""):
         # Plot the points and the fit.
         # Return the calculated gains at bin 255, using fit function.
         if len(long_group) < 3:
-            gains[channel] = None
+            gains[channel_name] = None
             continue
         coeffs, _ = curve_fit(  # pylint: disable=unbalanced-tuple-unpacking
             _power_func,
@@ -255,7 +285,7 @@ def _calc_gain(projs, init_gain, plot=True, save_path=""):
             p0=(1, 1),
         )
         if plot:
-            _save_path = f"{save_path}_{channel}.png"
+            _save_path = f"{save_path}_{channel_name}.png"
             _create_plot(
                 _save_path,
                 [p.box for p in points],
@@ -263,12 +293,14 @@ def _calc_gain(projs, init_gain, plot=True, save_path=""):
                 coeffs,
                 "box-gain",
             )
-        gains[channel] = round(_power_func(255, *coeffs))
+        gains[channel_name] = round(float(_power_func(np.array([255]), *coeffs)[0]))
 
     return gains
 
 
-def save_gain(save_dir, saved_gains, header):
+def save_gain(
+    save_dir: str, saved_gains: dict[str, dict[str, int | None]], header: list[str]
+) -> None:
     """Save a csv file with gain values per image channel."""
     path = os.path.normpath(os.path.join(save_dir, "output_gains.csv"))
     data = pd.DataFrame.from_dict(saved_gains, orient="index", columns=[header[1:]])
@@ -276,7 +308,7 @@ def save_gain(save_dir, saved_gains, header):
     data.to_csv(path)
 
 
-def ensure_plot_dir(plot_dir):
+def ensure_plot_dir(plot_dir: Path) -> None:
     """Make sure that plot dir exists."""
     if not plot_dir.exists():
         plot_dir.mkdir()
@@ -290,30 +322,30 @@ class GainCalcEvent(Event):
     event_type = GAIN_CALC_EVENT
 
     @property
-    def channel_name(self):
-        """:str: Return the channel name of the event."""
+    def channel_name(self) -> str | None:
+        """Return the channel name of the event."""
         return self.data.get("channel_name")
 
     @property
-    def gain(self):
-        """:str: Return the channel gain of the event."""
+    def gain(self) -> int | None:
+        """Return the channel gain of the event."""
         return self.data.get("gain")
 
     @property
-    def plate_name(self):
-        """:str: Return the name of the plate."""
+    def plate_name(self) -> str | None:
+        """Return the name of the plate."""
         return self.data.get("plate_name")
 
     @property
-    def well_x(self):
-        """:int: Return the well x coordinate of the event."""
+    def well_x(self) -> int | None:
+        """Return the well x coordinate of the event."""
         return self.data.get("well_x")
 
     @property
-    def well_y(self):
-        """:int: Return the well y coordinate of the event."""
+    def well_y(self) -> int | None:
+        """Return the well y coordinate of the event."""
         return self.data.get("well_y")
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Return the representation."""
         return f"<{type(self).__name__}: {self.gain}>"

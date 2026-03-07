@@ -1,13 +1,18 @@
 """Test gain calculation."""
 
-from unittest.mock import PropertyMock, patch
+from collections.abc import Generator
+from typing import Any
+from unittest.mock import MagicMock, PropertyMock, patch
 
 from camacq import plugins
+from camacq.control import Center
+from camacq.event import Event
+from camacq.image import ImageData
 from camacq.plugins.leica import LeicaImageEvent
 import numpy as np
 import pytest
 
-from camacqplugins.gain import GAIN_CALC_EVENT
+from camacqplugins.gain import GAIN_CALC_EVENT, GainCalcEvent
 from tests.common import IMAGE_DATA_DIR
 
 PLATE_NAME = "slide"
@@ -15,7 +20,7 @@ WELL_X, WELL_Y = 1, 0
 
 
 @pytest.fixture(name="load_image")
-def load_image_fixture():
+def load_image_fixture() -> Generator[MagicMock]:
     """Patch load image and metadata."""
     with (
         patch("camacq.image.ImageData._load_image_data", autospec=True) as load_image,
@@ -27,9 +32,9 @@ def load_image_fixture():
         yield load_image
 
 
-async def test_gain(center, leica_sample, load_image):
+async def test_gain(center: Center, leica_sample: None, load_image: MagicMock) -> None:
     """Run gain calculation test."""
-    config = {
+    config: dict[str, Any] = {
         "gain": {
             "channels": [
                 {
@@ -67,10 +72,10 @@ async def test_gain(center, leica_sample, load_image):
     image_fixture = IMAGE_DATA_DIR / "image_data.npz"
     image_data = await center.add_executor_job(np.load, image_fixture)
 
-    def mock_load_image(image):
+    def mock_load_image(image: ImageData) -> None:
         """Mock load image."""
         data = image_data[image.path]
-        image._data = data  # pylint: disable=protected-access
+        image._data = data
 
     load_image.side_effect = mock_load_image
 
@@ -79,17 +84,19 @@ async def test_gain(center, leica_sample, load_image):
     for event in events:
         await center.bus.notify(event)
 
-    calculated = {}
+    calculated: dict[str, int | None] = {}
 
-    async def handle_gain_event(center, event):
+    async def handle_gain_event(center: Center, event: Event) -> None:
         """Handle gain event."""
+        gain_event = GainCalcEvent(event.data)
         if (
-            event.plate_name != PLATE_NAME
-            or event.well_x != WELL_X
-            or event.well_y != WELL_Y
+            gain_event.plate_name != PLATE_NAME
+            or gain_event.well_x != WELL_X
+            or gain_event.well_y != WELL_Y
         ):
             return
-        calculated[event.channel_name] = event.gain
+        if gain_event.channel_name is not None:
+            calculated[gain_event.channel_name] = gain_event.gain
 
     center.bus.register(GAIN_CALC_EVENT, handle_gain_event)
 

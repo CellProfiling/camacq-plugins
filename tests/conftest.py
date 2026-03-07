@@ -8,14 +8,14 @@ import pytest
 
 
 @pytest.fixture(name="center")
-async def center_fixture():
+async def center_fixture() -> Center:
     """Give access to center via fixture."""
     _center = Center(loop=asyncio.get_running_loop())
-    _center._track_tasks = True  # pylint: disable=protected-access
-    yield _center
+    _center._track_tasks = True
+    return _center
 
 
 @pytest.fixture(name="leica_sample")
-async def leica_sample_fixture(center):
+async def leica_sample_fixture(center: Center) -> None:
     """Mock leica sample."""
     await leica_sample_mod.setup_module(center, {})

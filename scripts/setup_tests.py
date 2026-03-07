@@ -7,6 +7,7 @@ import gzip
 import os
 from pathlib import Path
 import shutil
+from typing import Any
 
 import numpy as np
 import tifffile
@@ -14,7 +15,7 @@ import tifffile
 IMAGE_DATA_DIR = os.path.join(os.path.dirname(__file__), "../tests/fixtures/image_data")
 
 
-def _find_files(root_dir, search):
+def _find_files(root_dir: str, search: str) -> list[str]:
     """Search for files in root directory."""
     matches = []
     for root, _, filenames in os.walk(os.path.normpath(root_dir)):
@@ -23,7 +24,7 @@ def _find_files(root_dir, search):
     return matches
 
 
-def pack_image_fixture(root_dir=None):
+def pack_image_fixture(root_dir: str | None = None) -> None:
     """Gunzip tif images for image tests."""
     if root_dir is None:
         root_dir = IMAGE_DATA_DIR
@@ -37,7 +38,7 @@ def pack_image_fixture(root_dir=None):
         os.remove(path)
 
 
-def unpack_image_fixture(root_dir=None):
+def unpack_image_fixture(root_dir: str | None = None) -> None:
     """Unzip gunzipped tif images for image tests."""
     if root_dir is None:
         root_dir = IMAGE_DATA_DIR
@@ -49,7 +50,7 @@ def unpack_image_fixture(root_dir=None):
                 shutil.copyfileobj(f_in, f_out)
 
 
-def read_image_data(root_dir=None):
+def read_image_data(root_dir: str | None = None) -> list[dict[str, Any]]:
     """Return a list of dicts with path and image numpy array data."""
     if root_dir is None:
         root_dir = IMAGE_DATA_DIR
@@ -67,31 +68,31 @@ def read_image_data(root_dir=None):
     return image_data
 
 
-def save_images_to_npz(path):
+def save_images_to_npz(path: str) -> None:
     """Save image data as compressed npz."""
-    path = Path(path).resolve()
+    resolved_path = Path(path).resolve()
     image_data = read_image_data()
-    np.savez_compressed(path, **{data["path"]: data["data"] for data in image_data})
+    np.savez_compressed(
+        resolved_path, **{data["path"]: data["data"] for data in image_data}
+    )
 
 
-def get_arguments(args=None):
+def get_arguments(args: list[str] | None = None) -> argparse.Namespace:
     """Get parsed arguments."""
     parser = argparse.ArgumentParser(description="Unpack or pack fixture files.")
     parser.add_argument("--pack", action="store_true", help="Pack fixture files.")
     parser.add_argument("--npz", help="Save image fixture data in a npz file.")
-    args = parser.parse_args(args=args)
-
-    return args
+    return parser.parse_args(args=args)
 
 
-def main(args=None):
+def main(args: list[str] | None = None) -> None:
     """Pack or unpack the images for test fixtures."""
-    args = get_arguments(args=args)
+    parsed_args = get_arguments(args=args)
 
-    if args.npz:
-        save_images_to_npz(args.npz)
+    if parsed_args.npz:
+        save_images_to_npz(parsed_args.npz)
         return
-    if args.pack:
+    if parsed_args.pack:
         pack_image_fixture()
     else:
         unpack_image_fixture()

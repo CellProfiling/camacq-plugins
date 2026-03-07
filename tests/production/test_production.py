@@ -1,8 +1,11 @@
 """Test the production plugin."""
 
+from pathlib import Path
+from typing import Any
 from unittest.mock import AsyncMock, call
 
 from camacq import plugins
+from camacq.control import Center
 from camacq.plugins.api import ImageEvent
 from camacq.plugins.sample import get_matched_samples
 from ruamel.yaml import YAML
@@ -62,38 +65,38 @@ class WorkflowImageEvent(ImageEvent):
     event_type = "workflow_image_event"
 
     @property
-    def job_id(self):
-        """:int: Return job id of the image."""
+    def job_id(self) -> int | None:
+        """Return job id of the image."""
         return self.data.get("job_id")
 
 
-async def test_image_events(center, leica_sample):
+async def test_image_events(center: Center, leica_sample: None) -> None:
     """Test image events."""
-    config = YAML(typ="safe").load(CONFIG)
+    config: dict[str, Any] = YAML(typ="safe").load(CONFIG)
     plate_name = "00"
     well_x = 0
     well_y = 0
     await plugins.setup_module(center, config)
     calc_gain = AsyncMock()
-    gains = {
+    gains: dict[str, int] = {
         "green": 800,
         "blue": 700,
         "yellow": 600,
         "red": 500,
     }
 
-    async def fire_gain_event(**kwargs):
+    async def fire_gain_event(**kwargs: Any) -> None:
         """Fire gain event."""
-        well_x = kwargs.get("well_x")
-        well_y = kwargs.get("well_y")
-        plate_name = kwargs.get("plate_name")
+        _well_x = kwargs.get("well_x")
+        _well_y = kwargs.get("well_y")
+        _plate_name = kwargs.get("plate_name")
 
         for channel_name, gain in gains.items():
             event = GainCalcEvent(
                 {
-                    "plate_name": plate_name,
-                    "well_x": well_x,
-                    "well_y": well_y,
+                    "plate_name": _plate_name,
+                    "well_x": _well_x,
+                    "well_y": _well_y,
                     "channel_name": channel_name,
                     "gain": gain,
                 }
@@ -143,14 +146,15 @@ async def test_image_events(center, leica_sample):
             well_y=well_y,
             channel_id=channels[channel_name],
         )
+        assert channel is not None
         assert channel.values["gain"] == gain
 
 
-async def test_load_sample(center, leica_sample, tmp_path):
+async def test_load_sample(center: Center, leica_sample: None, tmp_path: Path) -> None:
     """Test loading sample state from file."""
     state_file = tmp_path / "state_file.csv"
     state_file.write_text(SAMPLE_STATE)
-    config = YAML(typ="safe").load(CONFIG)
+    config: dict[str, Any] = YAML(typ="safe").load(CONFIG)
     config["production"]["sample_state_file"] = str(state_file)
     plate_name = "00"
     await plugins.setup_module(center, config)
