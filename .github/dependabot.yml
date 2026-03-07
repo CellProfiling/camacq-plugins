@@ -4,6 +4,17 @@
 # https://help.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
 
 version: 2
+enable-beta-ecosystems: true # Required to use the pre-commit ecosystems
+multi-ecosystem-groups:
+  codespell:
+    schedule:
+      interval: "weekly"
+  python-semantic-release:
+    schedule:
+      interval: "weekly"
+  ruff:
+    schedule:
+      interval: "weekly"
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -15,3 +26,37 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
+  - package-ecosystem: "pre-commit"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 10
+  - package-ecosystem: "pip"
+    directory: "/"
+    patterns: ["codespell"]
+    multi-ecosystem-group: "codespell"
+  - package-ecosystem: "pre-commit"
+    directory: "/"
+    patterns: ["*/codespell-project/codespell"]
+    multi-ecosystem-group: "codespell"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    patterns: ["python-semantic-release/*"]
+    multi-ecosystem-group: "python-semantic-release"
+  - package-ecosystem: "pip"
+    directory: "/"
+    patterns: ["python-semantic-release"]
+    multi-ecosystem-group: "python-semantic-release"
+  - package-ecosystem: "pip"
+    directory: "/"
+    patterns: ["ruff"]
+    multi-ecosystem-group: "ruff"
+  - package-ecosystem: "pre-commit"
+    directory: "/"
+    patterns: ["*/astral-sh/ruff-pre-commit"]
+    multi-ecosystem-group: "ruff"
