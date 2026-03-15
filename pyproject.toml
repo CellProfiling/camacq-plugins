@@ -48,7 +48,7 @@ dev = [
   "pytest-cov==7",
   "python-semantic-release>=10,<11",
   "ruff==0.15.5",
-  "scipy-stubs==1.17.1",
+  "scipy-stubs==1.17.1.1",
 ]
 
 [tool.ruff]
