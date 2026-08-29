@@ -96,12 +96,12 @@ async def setup_module(center: Center, config: dict[str, Any]) -> None:
             if not well:
                 return
             images = {
-                path: image.channel_id  # type: ignore[attr-defined]
+                path: image.channel_id  # type: ignore
                 for path, image in well.images.items()
             }
         else:
             images = {
-                path: image.channel_id  # type: ignore[attr-defined]
+                path: image.channel_id  # type: ignore
                 for path, image in center.samples.leica.images.items()
                 if path in paths
             }
@@ -243,7 +243,7 @@ def _calc_gain(
             continue
         x_data = roi[COUNT].astype(float).values
         y_data = roi[BOX].astype(float).values
-        coeffs, _ = curve_fit(_power_func, x_data, y_data, p0=(1000, -1))
+        coeffs, _ = curve_fit(_power_func, x_data, y_data, p0=(1000, -1))  # type: ignore
         if plot:
             _save_path = f"{save_path}_{CHANNEL_ID.format(c_id)}.ome.png"
             _create_plot(

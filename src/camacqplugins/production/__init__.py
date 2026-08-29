@@ -51,7 +51,7 @@ def read_csv(path: str) -> list[dict[str, str]]:
     except Exception as exc:
         _LOGGER.error("Failed to read csv file: %s", exc)
         raise vol.Invalid("Failed to read csv file") from exc
-    return data.to_dict(orient="records")  # type: ignore[return-value]
+    return data.to_dict(orient="records")  # type: ignore
 
 
 @vol.truth
@@ -202,7 +202,7 @@ class WorkFlow:
         async def send_cam_job(center: Center, event: Event) -> None:
             """Run on well event."""
             next_well_x, next_well_y = next_well_xy(
-                center.samples.leica,  # type: ignore[arg-type]
+                center.samples.leica,  # type: ignore
                 PLATE_NAME,
             )
 
@@ -260,9 +260,9 @@ class WorkFlow:
 
             await center.actions.command.stop_imaging()
             await center.actions.gain.calc_gain(
-                plate_name=event.plate_name,  # type: ignore[attr-defined]
-                well_x=event.well_x,  # type: ignore[attr-defined]
-                well_y=event.well_y,  # type: ignore[attr-defined]
+                plate_name=event.plate_name,  # type: ignore
+                well_x=event.well_x,  # type: ignore
+                well_y=event.well_y,  # type: ignore
             )
 
         return self._center.bus.register(IMAGE_EVENT, calc_gain)
@@ -276,12 +276,12 @@ class WorkFlow:
                 (
                     (channel_id, channel)
                     for channel_id, channel in enumerate(self.channels)
-                    if event.channel_name == channel[CONF_CHANNEL]  # type: ignore[attr-defined]
+                    if event.channel_name == channel[CONF_CHANNEL]  # type: ignore
                 )
             )
             exp = str(channel[CONF_JOB_NAME])
             num = int(channel[CONF_DETECTOR_NUM])
-            event_gain: int = event.gain or int(channel[CONF_DEFAULT_GAIN])  # type: ignore[attr-defined]
+            event_gain: int = event.gain or int(channel[CONF_DEFAULT_GAIN])  # type: ignore
             gain = min(event_gain, int(channel[CONF_MAX_GAIN]))
 
             command = gain_com(exp=exp, num=num, value=gain)
@@ -291,11 +291,11 @@ class WorkFlow:
             # Set the gain in the sample state.
             await center.actions.sample.set_sample(
                 name="channel",
-                plate_name=event.plate_name,  # type: ignore[attr-defined]
-                well_x=event.well_x,  # type: ignore[attr-defined]
-                well_y=event.well_y,  # type: ignore[attr-defined]
+                plate_name=event.plate_name,  # type: ignore
+                well_x=event.well_x,  # type: ignore
+                well_y=event.well_y,  # type: ignore
                 channel_id=channel_id,
-                values={"channel_name": event.channel_name, "gain": gain},  # type: ignore[attr-defined]
+                values={"channel_name": event.channel_name, "gain": gain},  # type: ignore
             )
 
         return self._center.bus.register("gain_calc_event", set_gain)
@@ -310,9 +310,9 @@ class WorkFlow:
                 center.samples.leica,
                 "channel",
                 {
-                    "plate_name": event.plate_name,  # type: ignore[attr-defined]
-                    "well_x": event.well_x,  # type: ignore[attr-defined]
-                    "well_y": event.well_y,  # type: ignore[attr-defined]
+                    "plate_name": event.plate_name,  # type: ignore
+                    "well_x": event.well_x,  # type: ignore
+                    "well_y": event.well_y,  # type: ignore
                 },
             )
             if not match_event(event, channel_name=last_channel[CONF_CHANNEL]) or len(
@@ -325,8 +325,8 @@ class WorkFlow:
                 for field_y in range(self.y_fields):
                     cmd = cam_com(
                         self.exp_pattern,
-                        event.well_x,  # type: ignore[attr-defined]
-                        event.well_y,  # type: ignore[attr-defined]
+                        event.well_x,  # type: ignore
+                        event.well_y,  # type: ignore
                         field_x,
                         field_y,
                         0,
@@ -399,37 +399,37 @@ class WorkFlow:
     async def rename_image(self, center: Center, event: Event) -> None:
         """Rename an image."""
         if (
-            event.job_id not in self.exp_job_ids  # type: ignore[attr-defined]
-            or event.channel_id not in (0, 1)  # type: ignore[attr-defined]
+            event.job_id not in self.exp_job_ids  # type: ignore
+            or event.channel_id not in (0, 1)  # type: ignore
         ):
             return
 
         channel_id: int
-        if event.job_id == self.exp_job_ids[0]:  # type: ignore[attr-defined]
+        if event.job_id == self.exp_job_ids[0]:  # type: ignore
             channel_id = 0
         elif (
-            event.job_id == self.exp_job_ids[1]  # type: ignore[attr-defined]
-            and event.channel_id == 0  # type: ignore[attr-defined]
+            event.job_id == self.exp_job_ids[1]  # type: ignore
+            and event.channel_id == 0  # type: ignore
         ):
             channel_id = 1
         elif (
-            event.job_id == self.exp_job_ids[1]  # type: ignore[attr-defined]
-            and event.channel_id == 1  # type: ignore[attr-defined]
+            event.job_id == self.exp_job_ids[1]  # type: ignore
+            and event.channel_id == 1  # type: ignore
         ):
             channel_id = 2
-        elif event.job_id == self.exp_job_ids[2]:  # type: ignore[attr-defined]
+        elif event.job_id == self.exp_job_ids[2]:  # type: ignore
             channel_id = 3
         else:
             return
 
         new_name = (
-            f"U{event.well_x:02}--V{event.well_y:02}--E{event.job_id:02}--"  # type: ignore[attr-defined]
-            f"X{event.field_x:02}--Y{event.field_y:02}--"  # type: ignore[attr-defined]
-            f"Z{event.z_slice:02}--C{channel_id:02}.ome.tif"  # type: ignore[attr-defined]
+            f"U{event.well_x:02}--V{event.well_y:02}--E{event.job_id:02}--"  # type: ignore
+            f"X{event.field_x:02}--Y{event.field_y:02}--"  # type: ignore
+            f"Z{event.z_slice:02}--C{channel_id:02}.ome.tif"  # type: ignore
         )
 
         await center.actions.rename_image.rename_image(
-            old_path=event.path,  # type: ignore[attr-defined]
+            old_path=event.path,  # type: ignore
             new_name=new_name,
         )
 
@@ -440,11 +440,11 @@ class WorkFlow:
 
         await center.actions.sample.set_sample(
             name="field",
-            plate_name=event.plate_name,  # type: ignore[attr-defined]
-            well_x=event.well_x,  # type: ignore[attr-defined]
-            well_y=event.well_y,  # type: ignore[attr-defined]
-            field_x=event.field_x,  # type: ignore[attr-defined]
-            field_y=event.field_y,  # type: ignore[attr-defined]
+            plate_name=event.plate_name,  # type: ignore
+            well_x=event.well_x,  # type: ignore
+            well_y=event.well_y,  # type: ignore
+            field_x=event.field_x,  # type: ignore
+            field_y=event.field_y,  # type: ignore
             values={"img_ok": True},
         )
 
