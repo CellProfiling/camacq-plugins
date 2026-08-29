@@ -21,6 +21,7 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3.15",
   "Topic :: Scientific/Engineering :: Interface Engine/Protocol Translator",
 ]
 dependencies = [
@@ -38,17 +39,18 @@ entry-points."camacq.plugins".production = "camacqplugins.production"
 
 [dependency-groups]
 dev = [
-  "codespell==2.4.2",
-  "copier==9.15.1",
-  "mypy==2.1.0",
+  "codespell==2.4.3",
+  "copier==9.17.2",
   "pandas-stubs==3.0.3.260530",
-  "pre-commit==4.6.0",
-  "pytest==9.0.3",
+  "prek==0.5.0",
+  "pytest==9.1.1",
   "pytest-asyncio==1.4.0",
   "pytest-cov==7.1.0",
-  "python-semantic-release>=10,<11",
-  "ruff==0.15.14",
+  "python-semantic-release==10.6.2",
+  "ruff==0.16.5",
   "scipy-stubs==1.17.1.5",
+  "sybil==9.3.0",
+  "ty==0.0.75",
 ]
 
 [tool.ruff]
@@ -70,7 +72,6 @@ lint.ignore = [
   "D213", # Multi-line docstring summary should start at the second line
 ]
 lint.per-file-ignores."conftest.py" = [ "D100" ]
-lint.per-file-ignores."setup.py" = [ "D100" ]
 lint.per-file-ignores."tests/**/*" = [
   "S101",
 ]
@@ -79,28 +80,15 @@ lint.isort.known-first-party = [ "camacqplugins", "tests" ]
 
 [tool.pyproject-fmt]
 keep_full_version = true
-max_supported_python = "3.14"
+max_supported_python = "3.15"
 
-[tool.mypy]
-mypy_path = "src/"
-exclude = [
-  "setup.py",
-]
-disallow_any_generics = true
-disallow_untyped_defs = true
-disallow_incomplete_defs = true
-check_untyped_defs = true
-warn_unused_ignores = true
-warn_unreachable = true
-overrides = [
-  { module = "tests.*", allow_untyped_defs = true },
-]
-no_implicit_optional = true
-show_error_codes = true
+[tool.ty]
+terminal.error-on-warning = true
 
 [tool.pytest]
 addopts = [
   "-Wonce",
+  "-p no:doctest",
   "--cov=camacqplugins",
   "--cov-report=term",
   "--cov-report=xml",
