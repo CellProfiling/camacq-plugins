@@ -11,6 +11,15 @@ resolution-markers = [
 ]
 
 [[package]]
+name = "annotated-doc"
+version = "0.0.5"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/5a/8e/38aa427ed5402449e226975b649c5dc73ccadfefeb95e6aecb8f8ea4b6b6/annotated_doc-0.0.5.tar.gz", hash = "sha256:c7e58ce09192557605d8bbd92836d7e1d520ac9580096042c0bfd197efacf1bb", size = 10758, upload-time = "2026-07-28T13:50:58.129Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3e/30/e900b21425a860e195f32e37657aa1f7c7f2b1bfb26f03ca209b90933c06/annotated_doc-0.0.5-py3-none-any.whl", hash = "sha256:117bac03a25ede5df5440e855b32d556049ca169ead221505badf432fed4b101", size = 5302, upload-time = "2026-07-28T13:50:57.239Z" },
+]
+
+[[package]]
 name = "annotated-types"
 version = "0.8.0"
 source = { registry = "https://pypi.org/simple" }
@@ -30,7 +39,7 @@ wheels = [
 
 [[package]]
 name = "camacq"
-version = "0.10.0"
+version = "0.10.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "colorlog" },
@@ -40,12 +49,13 @@ dependencies = [
     { name = "numpy" },
     { name = "ruamel-yaml" },
     { name = "tifffile" },
+    { name = "typer" },
     { name = "voluptuous" },
     { name = "xmltodict" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a5/b1/924155db2e18f7a76abc1dc34c7043f6b8d3d85829fd312ddc671431896b/camacq-0.10.0.tar.gz", hash = "sha256:052fd01b870f02285465736ce46caaea280ce200315c0e1b62b63e2892cfb6f4", size = 46123, upload-time = "2026-03-07T16:19:42.76Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/98/42/6533b35522b1132d3609c3a56598e9a65885ed3274bb844e245a67384f92/camacq-0.10.1.tar.gz", hash = "sha256:897e98bcfa6a91df3caadcd32ba88b253261b3d469cf8f7478ac39d288f1a712", size = 45865, upload-time = "2026-08-30T07:40:58.296Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6a/5f/d9f29713a0bdc1fa225679984421364dbc78814c83baa9201ead609b3e9c/camacq-0.10.0-py3-none-any.whl", hash = "sha256:75671fa1f20fab346a180cdcd6689b9683c6f63b298281f0fe6da896f4bb32ec", size = 44695, upload-time = "2026-03-07T16:19:41.215Z" },
+    { url = "https://files.pythonhosted.org/packages/60/4a/9eeb68954710be116f9309a3d4d9871e6220d25de3bc37ccb8269918ccfd/camacq-0.10.1-py3-none-any.whl", hash = "sha256:bb4e0c2b24cf26e2f880f8bd2d6347fe6288f47778853665b8a7abf5707cd531", size = 44553, upload-time = "2026-08-30T07:40:56.969Z" },
 ]
 
 [[package]]
@@ -1717,6 +1727,21 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/bb/52/12776337874c821076bd5368e352ccd9e67174790abe3b856f749cb3524b/ty-0.0.75-py3-none-win32.whl", hash = "sha256:05063a6fafe2154b794a7f964515d148e51acd186d72d4a3acd347ee9fa19336", size = 12316315, upload-time = "2026-08-26T20:23:33.528Z" },
     { url = "https://files.pythonhosted.org/packages/53/e6/bb51e16af5c7138c9f52f8f3d0a401a371c6798d092e3b74926f186a9814/ty-0.0.75-py3-none-win_amd64.whl", hash = "sha256:81cf1ba5f6b7536ad56747865214255d9bc8e80533a689dbb9ddeaad464b09f1", size = 12917267, upload-time = "2026-08-26T20:23:35.978Z" },
     { url = "https://files.pythonhosted.org/packages/39/73/4542f829107468b5de4231af67f29927c093bfad11f3c1e5b2c08fb1206b/ty-0.0.75-py3-none-win_arm64.whl", hash = "sha256:541c9af5b7a0ad23d15ec315a7da81150833c359f48124ed3789ff25eacd6f42", size = 12711024, upload-time = "2026-08-26T20:23:38.159Z" },
+]
+
+[[package]]
+name = "typer"
+version = "0.27.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "annotated-doc" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "rich" },
+    { name = "shellingham" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ae/40/4a3db7990d1f62a53182aa96eaef57aeb2886a27f90a195bc66713565d31/typer-0.27.1.tar.gz", hash = "sha256:a79bef8469a79c45498e7b814ecf8d603cc7644e9acbd9e19cac0334240b18df", size = 203994, upload-time = "2026-08-03T14:41:03.438Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/43/89/9518bc0c3929bee36b3a4a8e3daddd6e03f92f9961c66d4983b837160543/typer-0.27.1-py3-none-any.whl", hash = "sha256:53150287edd11baeb4e4722c8e394fcdf8181c0ae89485cba8d25c778d5edd56", size = 122874, upload-time = "2026-08-03T14:41:04.391Z" },
 ]
 
 [[package]]
