@@ -40,7 +40,7 @@ entry-points."camacq.plugins".production = "camacqplugins.production"
 [dependency-groups]
 dev = [
   "codespell==2.4.3",
-  "copier==9.17.2",
+  "copier==9.18.1",
   "pandas-stubs==3.0.5.260730",
   "prek==0.5.2",
   "pytest==9.1.1",
