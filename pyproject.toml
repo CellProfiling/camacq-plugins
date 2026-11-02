@@ -40,17 +40,17 @@ entry-points."camacq.plugins".production = "camacqplugins.production"
 [dependency-groups]
 dev = [
   "codespell==2.4.3",
-  "copier==9.18.1",
-  "pandas-stubs==3.0.5.260730",
-  "prek==0.5.2",
+  "copier==9.19.1",
+  "pandas-stubs==3.0.5.260914",
+  "prek==0.5.9",
   "pytest==9.1.1",
   "pytest-asyncio==1.4.0",
   "pytest-cov==7.1.0",
-  "python-semantic-release==10.6.2",
+  "python-semantic-release==10.7.0",
   "ruff==0.16.6",
-  "scipy-stubs==1.18.1.0",
+  "scipy-stubs==1.18.1.1",
   "sybil==10.1.0",
-  "ty==0.0.78",
+  "ty==0.0.95",
 ]
 
 [tool.ruff]
